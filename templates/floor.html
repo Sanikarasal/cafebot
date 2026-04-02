@@ -1,0 +1,375 @@
+{% extends "ops_base.html" %}
+{% block content %}
+<div class="row g-3">
+    <div class="col-lg-9">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+            <h2 class="h4 mb-0">Live Floor Board</h2>
+            <button class="btn btn-primary btn-touch" data-bs-toggle="modal" data-bs-target="#quickBookingModal">Quick Booking</button>
+        </div>
+        <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3">
+            {% for t in tables %}
+            <div class="col">
+                <div class="card table-card shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h5 class="card-title mb-1">Table {{ t.table_number }}</h5>
+                                <div class="text-muted small">Seats: {{ t.capacity }}</div>
+                            </div>
+                            <span class="badge status-badge status-{{ t.status|replace(' ', '')|replace('(', '')|replace(')', '') }}">{{ t.status }}</span>
+                        </div>
+                        <hr>
+                        <div class="small">
+                            <div><strong>Guest:</strong> {{ t.guest_name or "-" }}</div>
+                            <div><strong>Guests:</strong> {{ t.guests or "-" }}</div>
+                            <div><strong>Seated since:</strong> {{ t.seated_since or "-" }}</div>
+                            <div><strong>Next booking:</strong> {{ t.next_reservation or "-" }}</div>
+                        </div>
+                        <div class="mt-3 d-grid gap-2">
+                            <button class="btn btn-success btn-touch action-seat"
+                                    data-table="{{ t.table_number }}"
+                                    data-booking="{{ t.booking_id or '' }}"
+                                    {% if not t.booking_id %}data-walkin="1"{% endif %}>
+                                Seat Guest
+                            </button>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-danger btn-touch flex-fill action-checkout"
+                                        data-booking="{{ t.booking_id or '' }}"
+                                        {% if not t.booking_id %}disabled{% endif %}>
+                                    Checkout Guest
+                                </button>
+                                <button class="btn btn-warning btn-touch flex-fill action-needs-cleaning"
+                                        data-table="{{ t.table_number }}">
+                                    Needs Cleaning
+                                </button>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-outline-success btn-touch flex-fill action-clean"
+                                        data-table="{{ t.table_number }}">
+                                    Mark Clean
+                                </button>
+                                <button class="btn btn-outline-secondary btn-touch flex-fill action-occupied"
+                                        data-table="{{ t.table_number }}">
+                                    Mark Occupied
+                                </button>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-outline-dark btn-touch flex-fill action-block"
+                                        data-table="{{ t.table_number }}">
+                                    Block Table
+                                </button>
+                                <button class="btn btn-outline-primary btn-touch flex-fill action-unblock"
+                                        data-table="{{ t.table_number }}">
+                                    Unblock
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="col-lg-3">
+        <div class="card sidebar-card mb-3 shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">Next 2 Hours</h5>
+                {% if upcoming %}
+                    <ul class="list-group list-group-flush">
+                        {% for b in upcoming %}
+                        <li class="list-group-item px-0">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <div class="fw-semibold">{{ b.time }} — {{ b.name }}</div>
+                                    <div class="text-muted small">{{ b.guests }} guests • Table {{ b.table_number or "TBD" }}</div>
+                                </div>
+                                <span class="badge badge-soft">{{ b.status }}</span>
+                            </div>
+                            <div class="mt-2 d-flex gap-2">
+                                <button class="btn btn-success btn-sm btn-touch action-seat" data-booking="{{ b.id }}">Seat</button>
+                                <a class="btn btn-outline-secondary btn-sm btn-touch" href="/bookings#booking-{{ b.id }}">Edit</a>
+                                <button class="btn btn-outline-danger btn-sm btn-touch action-cancel" data-booking="{{ b.id }}">Cancel</button>
+                                <button class="btn btn-outline-warning btn-sm btn-touch action-noshow" data-booking="{{ b.id }}">No-show</button>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <div class="text-muted small">No upcoming reservations.</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card sidebar-card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">Walk-In Waitlist</h5>
+                <form id="waitlistForm" class="mb-3">
+                    <div class="mb-2">
+                        <input type="text" class="form-control" name="name" placeholder="Name" required>
+                    </div>
+                    <div class="mb-2">
+                        <input type="number" class="form-control" name="guests" min="1" placeholder="Guests" required>
+                    </div>
+                    <div class="mb-2">
+                        <input type="text" class="form-control" name="phone" placeholder="Phone (optional)">
+                    </div>
+                    <div class="mb-2">
+                        <select class="form-select" name="slot_time" required>
+                            <option value="">Select slot</option>
+                            {% for s in waitlist_slot_labels %}
+                                <option value="{{ s }}">{{ s }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button class="btn btn-primary btn-touch w-100" type="submit">Add to Waitlist</button>
+                </form>
+                {% if waitlist %}
+                    <ul class="list-group list-group-flush">
+                        {% for w in waitlist %}
+                        <li class="list-group-item px-0">
+                            <div class="fw-semibold">{{ w.name }} ({{ w.guests }})</div>
+                            <div class="text-muted small">Waiting: {{ w.wait_minutes or "-" }} min</div>
+                            <button class="btn btn-success btn-sm btn-touch mt-2 action-assign" data-waitlist="{{ w.id }}">Assign Table</button>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <div class="text-muted small">No waitlist entries.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="quickBookingModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Quick Booking</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="quickBookingForm">
+                    <div class="mb-2">
+                        <label class="form-label">Name</label>
+                        <input type="text" class="form-control" name="name" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Phone</label>
+                        <input type="text" class="form-control" name="phone">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Guests</label>
+                        <input type="number" class="form-control" name="guests" min="1" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Date</label>
+                        <input type="date" class="form-control" name="date" value="{{ today_date }}" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Time</label>
+                        <select class="form-select" name="slot_time" required>
+                            <option value="">Select slot</option>
+                            {% for s in slot_labels %}
+                                <option value="{{ s }}">{{ s }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Table Number</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" name="table_number" min="1" placeholder="Auto-assign if blank">
+                            <button class="btn btn-outline-secondary" type="button" id="suggestTableBtn">Suggest</button>
+                        </div>
+                        <div class="small text-muted mt-1" id="suggestedTables"></div>
+                    </div>
+                    <button class="btn btn-primary btn-touch w-100" type="submit">Seat Guest</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function postJson(url, data) {
+    const res = await fetch(url, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(data)
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok || payload.ok === false) {
+        throw new Error(payload.error || "Action failed");
+    }
+    return payload;
+}
+
+document.querySelectorAll(".action-seat").forEach(btn => {
+    btn.addEventListener("click", async () => {
+        const bookingId = btn.dataset.booking;
+        if (btn.dataset.walkin === "1") {
+            const modal = new bootstrap.Modal(document.getElementById("quickBookingModal"));
+            document.querySelector("#quickBookingForm [name='table_number']").value = btn.dataset.table;
+            modal.show();
+            return;
+        }
+        if (!bookingId) return;
+        try {
+            await postJson("/api/seat_guest", {booking_id: bookingId});
+            location.reload();
+        } catch (err) {
+            alert(err.message);
+        }
+    });
+});
+
+document.querySelectorAll(".action-checkout").forEach(btn => {
+    btn.addEventListener("click", async () => {
+        const bookingId = btn.dataset.booking;
+        if (!bookingId) return;
+        try {
+            await postJson("/api/checkout", {booking_id: bookingId});
+            location.reload();
+        } catch (err) {
+            alert(err.message);
+        }
+    });
+});
+
+document.querySelectorAll(".action-needs-cleaning").forEach(btn => {
+    btn.addEventListener("click", async () => {
+        try {
+            await postJson("/api/table/status", {table_number: btn.dataset.table, status: "Needs Cleaning"});
+            location.reload();
+        } catch (err) {
+            alert(err.message);
+        }
+    });
+});
+
+document.querySelectorAll(".action-clean").forEach(btn => {
+    btn.addEventListener("click", async () => {
+        try {
+            await postJson("/api/mark_clean", {table_number: btn.dataset.table});
+            location.reload();
+        } catch (err) {
+            alert(err.message);
+        }
+    });
+});
+
+document.querySelectorAll(".action-occupied").forEach(btn => {
+    btn.addEventListener("click", async () => {
+        try {
+            await postJson("/api/table/status", {table_number: btn.dataset.table, status: "Occupied"});
+            location.reload();
+        } catch (err) {
+            alert(err.message);
+        }
+    });
+});
+
+document.querySelectorAll(".action-block").forEach(btn => {
+    btn.addEventListener("click", async () => {
+        try {
+            await postJson("/api/table/status", {table_number: btn.dataset.table, status: "Blocked"});
+            location.reload();
+        } catch (err) {
+            alert(err.message);
+        }
+    });
+});
+
+document.querySelectorAll(".action-unblock").forEach(btn => {
+    btn.addEventListener("click", async () => {
+        try {
+            await postJson("/api/table/status", {table_number: btn.dataset.table, status: "Vacant"});
+            location.reload();
+        } catch (err) {
+            alert(err.message);
+        }
+    });
+});
+
+document.querySelectorAll(".action-cancel").forEach(btn => {
+    btn.addEventListener("click", async () => {
+        try {
+            await postJson("/api/booking/status", {booking_id: btn.dataset.booking, status: "cancelled"});
+            location.reload();
+        } catch (err) {
+            alert(err.message);
+        }
+    });
+});
+
+document.querySelectorAll(".action-noshow").forEach(btn => {
+    btn.addEventListener("click", async () => {
+        try {
+            await postJson("/api/booking/status", {booking_id: btn.dataset.booking, status: "No-show"});
+            location.reload();
+        } catch (err) {
+            alert(err.message);
+        }
+    });
+});
+
+document.querySelectorAll(".action-assign").forEach(btn => {
+    btn.addEventListener("click", async () => {
+        const tableNumber = prompt("Assign to table number:");
+        if (!tableNumber) return;
+        try {
+            await postJson("/api/waitlist/assign", {waitlist_id: btn.dataset.waitlist, table_number: tableNumber});
+            location.reload();
+        } catch (err) {
+            alert(err.message);
+        }
+    });
+});
+
+document.getElementById("waitlistForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const data = Object.fromEntries(new FormData(form).entries());
+    try {
+        await postJson("/api/waitlist/add", data);
+        location.reload();
+    } catch (err) {
+        alert(err.message);
+    }
+});
+
+document.getElementById("quickBookingForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const data = Object.fromEntries(new FormData(form).entries());
+    if (data.guests) data.guests = parseInt(data.guests, 10);
+    try {
+        await postJson("/api/seat_guest", data);
+        location.reload();
+    } catch (err) {
+        alert(err.message);
+    }
+});
+
+document.getElementById("suggestTableBtn").addEventListener("click", async () => {
+    const form = document.getElementById("quickBookingForm");
+    const data = Object.fromEntries(new FormData(form).entries());
+    if (!data.slot_time || !data.guests) {
+        alert("Select time and guests first.");
+        return;
+    }
+    try {
+        const res = await postJson("/api/table/suggest", {slot_time: data.slot_time, date: data.date, guests: data.guests});
+        const list = res.tables || [];
+        document.getElementById("suggestedTables").textContent = list.length ? `Suggested: ${list.join(", ")}` : "No tables available.";
+        if (list.length) {
+            form.querySelector("[name='table_number']").value = list[0];
+        }
+    } catch (err) {
+        alert(err.message);
+    }
+});
+</script>
+{% endblock %}

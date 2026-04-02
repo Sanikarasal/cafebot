@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+
+{% block head %}
+<style>
+@media print {
+  aside, header, form, button, .no-print { display: none !important; }
+  main { padding: 0 !important; }
+  .card, .bg-white { break-inside: avoid; box-shadow: none !important; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6 mt-2">
+    <h1 class="text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
+        <i class="bi bi-graph-up text-primary-500"></i> 
+    </h1>
+    <button onclick="window.print()"
+            class="flex items-center gap-2 px-4 py-2 text-sm font-bold border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-600">
+        <i class="bi bi-printer"></i> Print Report
+    </button>
+</div>
+
+<!-- Date Range Filter -->
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 mb-8 p-6">
+    <form method="GET" class="flex flex-col md:flex-row gap-4 items-end">
+        <div class="w-full md:w-1/3">
+            <label class="block text-xs font-bold text-gray-500 tracking-wider uppercase mb-1">Start Date</label>
+            <input type="date" class="focus:ring-2 focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-lg py-2 px-3 border" name="start" value="{{ start_date }}">
+        </div>
+        <div class="w-full md:w-1/3">
+            <label class="block text-xs font-bold text-gray-500 tracking-wider uppercase mb-1">End Date</label>
+            <input type="date" class="focus:ring-2 focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-lg py-2 px-3 border" name="end" value="{{ end_date }}">
+        </div>
+        <div class="flex gap-2 w-full md:w-1/3">
+            <button type="submit" class="flex-1 flex justify-center items-center py-2.5 px-4 rounded-lg shadow-sm text-sm font-bold text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors">
+                <i class="bi bi-funnel mr-2"></i> Filter
+            </button>
+            <a href="{{ url_for('admin.reports') }}" class="flex justify-center items-center py-2.5 px-4 rounded-lg shadow-sm text-sm font-bold text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors" title="Reset">
+                <i class="bi bi-arrow-counterclockwise"></i>
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Metrics Cards -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center hover:shadow-md transition-shadow">
+        <div class="inline-flex items-center justify-center h-12 w-12 rounded-full bg-primary-50 text-primary-600 mb-3">
+            <i class="bi bi-calendar-check text-2xl"></i>
+        </div>
+        <h2 class="text-3xl font-bold text-gray-900 mb-1">{{ report.total_bookings }}</h2>
+        <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Total Bookings</p>
+    </div>
+    
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center hover:shadow-md transition-shadow">
+        <div class="inline-flex items-center justify-center h-12 w-12 rounded-full bg-blue-50 text-blue-500 mb-3">
+            <i class="bi bi-people text-2xl"></i>
+        </div>
+        <h2 class="text-3xl font-bold text-gray-900 mb-1">{{ report.total_guests }}</h2>
+        <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Total Guests</p>
+    </div>
+    
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center hover:shadow-md transition-shadow">
+        <div class="inline-flex items-center justify-center h-12 w-12 rounded-full bg-red-50 text-red-500 mb-3">
+            <i class="bi bi-x-circle text-2xl"></i>
+        </div>
+        <h2 class="text-3xl font-bold text-gray-900 mb-1">{{ report.total_cancelled }}</h2>
+        <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Cancellations</p>
+    </div>
+    
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center hover:shadow-md transition-shadow">
+        <div class="inline-flex items-center justify-center h-12 w-12 rounded-full bg-yellow-50 text-yellow-500 mb-3">
+            <i class="bi bi-percent text-2xl"></i>
+        </div>
+        <h2 class="text-3xl font-bold text-gray-900 mb-1">{{ report.cancel_rate }}%</h2>
+        <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Cancellation Rate</p>
+    </div>
+</div>
+
+
+<!-- Peak Slots & Most Used Tables -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+        <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-2 bg-gray-50/50">
+            <i class="bi bi-fire text-red-500"></i>
+            <h5 class="font-bold text-gray-900 m-0">Peak Booking Slots</h5>
+        </div>
+        <div class="p-0 flex-1">
+            {% if report.peak_slots %}
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="text-xs uppercase tracking-wider text-gray-500 font-semibold border-b border-gray-100">
+                        <th class="py-3 px-6">Rank</th>
+                        <th class="py-3 px-6">Time Slot</th>
+                        <th class="py-3 px-6 text-right">Bookings</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    {% for slot in report.peak_slots %}
+                    <tr class="hover:bg-gray-50/50 transition-colors text-sm">
+                        <td class="py-3 px-6">
+                            {% if loop.index == 1 %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-yellow-100 text-yellow-800">🥇 #1</span>
+                            {% elif loop.index == 2 %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-gray-200 text-gray-800">🥈 #2</span>
+                            {% elif loop.index == 3 %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-orange-100 text-orange-800">🥉 #3</span>
+                            {% else %}
+                            <span class="text-gray-400 font-medium">#{{ loop.index }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-6 font-medium text-gray-900">{{ slot.slot_time }}</td>
+                        <td class="py-3 px-6 text-right font-bold text-gray-700">{{ slot.count }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="text-center py-12 text-gray-400">
+                <p>No data for this period.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+        <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-2 bg-gray-50/50">
+            <i class="bi bi-star text-yellow-500"></i>
+            <h5 class="font-bold text-gray-900 m-0">Most Used Tables</h5>
+        </div>
+        <div class="p-0 flex-1">
+            {% if report.most_used_tables %}
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="text-xs uppercase tracking-wider text-gray-500 font-semibold border-b border-gray-100">
+                        <th class="py-3 px-6">Rank</th>
+                        <th class="py-3 px-6">Table</th>
+                        <th class="py-3 px-6 text-right">Times Used</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    {% for table in report.most_used_tables %}
+                    <tr class="hover:bg-gray-50/50 transition-colors text-sm">
+                        <td class="py-3 px-6">
+                            {% if loop.index == 1 %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-yellow-100 text-yellow-800">🥇 #1</span>
+                            {% elif loop.index == 2 %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-gray-200 text-gray-800">🥈 #2</span>
+                            {% elif loop.index == 3 %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-orange-100 text-orange-800">🥉 #3</span>
+                            {% else %}
+                            <span class="text-gray-400 font-medium">#{{ loop.index }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-6 font-medium text-gray-900">Table {{ table.table_number }}</td>
+                        <td class="py-3 px-6 text-right font-bold text-gray-700">{{ table.count }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="text-center py-12 text-gray-400">
+                <p>No data for this period.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if report.daily_stats %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+    <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-2 bg-gray-50/50">
+        <i class="bi bi-calendar3 text-blue-500"></i>
+        <h5 class="font-bold text-gray-900 m-0">Daily Breakdown</h5>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+            <thead>
+                <tr class="text-xs uppercase tracking-wider text-gray-500 font-semibold border-b border-gray-100 bg-gray-50">
+                    <th class="py-3 px-6">Date</th>
+                    <th class="py-3 px-6 text-right">Total</th>
+                    <th class="py-3 px-6 text-right">Active</th>
+                    <th class="py-3 px-6 text-right">Cancelled</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-50">
+                {% for day in report.daily_stats %}
+                <tr class="hover:bg-gray-50/50 transition-colors text-sm">
+                    <td class="py-3 px-6 font-medium text-gray-900">{{ day.date }}</td>
+                    <td class="py-3 px-6 text-right text-gray-700">{{ day.total }}</td>
+                    <td class="py-3 px-6 text-right">
+                        <span class="text-green-700 font-bold">{{ day.active }}</span>
+                    </td>
+                    <td class="py-3 px-6 text-right">
+                        <span class="text-red-600">{{ day.cancelled }}</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

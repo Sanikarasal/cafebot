@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}Account Settings — CoziCafe{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto mt-2 space-y-6">
+
+    <!-- Profile Card -->
+    <div class="cafe-card p-6">
+        <div class="flex items-center gap-4 mb-4">
+            <div class="w-16 h-16 rounded-full flex items-center justify-center font-bold text-2xl text-white shadow-md"
+                style="background-color: #9A6818;">
+                {{ (user.username[0])|upper }}
+            </div>
+            <div>
+                <div class="text-lg font-bold text-gray-900">{{ user.username }}</div>
+                <div class="text-sm text-gray-400 capitalize flex items-center gap-1.5 mt-0.5">
+                    <i class="bi bi-shield-fill-check text-amber-500"></i>
+                    {{ user.role | capitalize }}
+                </div>
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4 pt-4 border-t border-stone-100 text-sm">
+            <div>
+                <span class="block text-xs font-bold text-gray-400 tracking-wider uppercase mb-0.5">Username</span>
+                <span class="text-gray-800 font-medium">{{ user.username }}</span>
+            </div>
+            <div>
+                <span class="block text-xs font-bold text-gray-400 tracking-wider uppercase mb-0.5">Role</span>
+                <span class="text-gray-800 font-medium capitalize">{{ user.role }}</span>
+            </div>
+            <div>
+                <span class="block text-xs font-bold text-gray-400 tracking-wider uppercase mb-0.5">Account
+                    Created</span>
+                <span class="text-gray-800 font-medium">{{ user.created_at or '—' }}</span>
+            </div>
+            <div>
+                <span class="block text-xs font-bold text-gray-400 tracking-wider uppercase mb-0.5">Status</span>
+                <span
+                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-green-50 text-green-700 border border-green-200">
+                    <i class="bi bi-circle-fill text-[6px]"></i> Active
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Password Card -->
+    <div class="cafe-card p-6">
+        <div class="flex items-center gap-2 mb-5">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:rgba(212,160,64,0.12)">
+                <i class="bi bi-lock-fill text-amber-600 text-sm"></i>
+            </div>
+            <div>
+                <h2 class="text-base font-bold text-gray-900">Change Password</h2>
+                <p class="text-xs text-gray-400">Choose a strong password (min. 6 characters)</p>
+            </div>
+        </div>
+
+        <form method="POST" action="{{ url_for('admin.admin_settings') }}"
+            x-data="{ showCurrent: false, showNew: false, showConfirm: false }">
+            <input type="hidden" name="action" value="change_password">
+            <div class="space-y-4">
+
+                <!-- Current Password -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 tracking-wider uppercase mb-1.5">Current
+                        Password</label>
+                    <div class="relative">
+                        <input :type="showCurrent ? 'text' : 'password'" name="current_password" required
+                            placeholder="Enter your current password"
+                            class="block w-full border border-gray-200 rounded-lg py-2.5 px-3 pr-10 text-sm focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition">
+                        <button type="button" @click="showCurrent = !showCurrent"
+                            class="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-600">
+                            <i :class="showCurrent ? 'bi-eye-slash' : 'bi-eye'" class="bi text-sm"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- New Password -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 tracking-wider uppercase mb-1.5">New
+                        Password</label>
+                    <div class="relative">
+                        <input :type="showNew ? 'text' : 'password'" name="new_password" required minlength="6"
+                            placeholder="Enter new password"
+                            class="block w-full border border-gray-200 rounded-lg py-2.5 px-3 pr-10 text-sm focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition">
+                        <button type="button" @click="showNew = !showNew"
+                            class="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-600">
+                            <i :class="showNew ? 'bi-eye-slash' : 'bi-eye'" class="bi text-sm"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Confirm New Password -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 tracking-wider uppercase mb-1.5">Confirm New
+                        Password</label>
+                    <div class="relative">
+                        <input :type="showConfirm ? 'text' : 'password'" name="confirm_password" required minlength="6"
+                            placeholder="Re-enter new password"
+                            class="block w-full border border-gray-200 rounded-lg py-2.5 px-3 pr-10 text-sm focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition">
+                        <button type="button" @click="showConfirm = !showConfirm"
+                            class="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-600">
+                            <i :class="showConfirm ? 'bi-eye-slash' : 'bi-eye'" class="bi text-sm"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="pt-2">
+                    <button type="submit"
+                        class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold text-white shadow-sm transition-colors hover:opacity-90"
+                        style="background-color: #9A6818;">
+                        <i class="bi bi-shield-lock-fill"></i>
+                        Update Password
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Danger Zone -->
+    <div class="cafe-card p-6 border border-red-100">
+        <div class="flex items-center gap-2 mb-4">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-red-50">
+                <i class="bi bi-exclamation-triangle-fill text-red-500 text-sm"></i>
+            </div>
+            <div>
+                <h2 class="text-base font-bold text-gray-900">Session</h2>
+                <p class="text-xs text-gray-400">Sign out of the admin panel</p>
+            </div>
+        </div>
+        <a href="{{ url_for('auth.logout') }}"
+            class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 transition-colors">
+            <i class="bi bi-box-arrow-right"></i>
+            Sign Out
+        </a>
+    </div>
+
+</div>
+{% endblock %}

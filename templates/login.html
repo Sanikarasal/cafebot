@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Sign In — CoziCafe{% endblock %}
+
+{#
+  Override the full-page wrapper to get a centred full-screen layout with no sidebar.
+  All login content lives directly here — we do NOT redefine {% block content %}.
+#}
+{% block outer_wrap %}
+<div class="min-h-screen flex items-center justify-center px-4" style="background-color: #F5F0E8;">
+<div class="w-full max-w-md mx-auto">
+
+    <!-- Logo + Heading -->
+    <div class="text-center mb-8">
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4 shadow-md"
+             style="background-color: #2C1810;">
+            <i class="bi bi-cup-hot-fill text-amber-300 text-3xl"></i>
+        </div>
+        <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">
+            CoziCafe <span class="font-normal" style="color: #9A6818;">Admin</span>
+        </h1>
+        <p class="mt-2 text-sm text-gray-500 font-medium">Sign in to manage your reservations</p>
+    </div>
+
+    <!-- Card -->
+    <div class="bg-white rounded-2xl shadow-xl border border-stone-200 overflow-hidden">
+        <!-- Warm accent strip -->
+        <div class="h-1" style="background: linear-gradient(90deg, #9A6818, #D4A040, #9A6818);"></div>
+
+        <form method="POST" class="px-8 py-8 space-y-6">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="space-y-2">
+                {% for category, message in messages %}
+                {% if category == 'danger' %}
+                <div class="flex items-center gap-2 p-3 rounded-lg bg-red-50 border border-red-200 text-red-800 text-sm">
+                    <i class="bi bi-exclamation-triangle-fill text-red-500 flex-shrink-0"></i>{{ message }}
+                </div>
+                {% else %}
+                <div class="flex items-center gap-2 p-3 rounded-lg bg-green-50 border border-green-200 text-green-800 text-sm">
+                    <i class="bi bi-check-circle-fill text-green-500 flex-shrink-0"></i>{{ message }}
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endwith %}
+
+            <div>
+                <label for="username" class="block text-xs font-bold text-gray-500 tracking-widest uppercase mb-1">
+                    Username
+                </label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="bi bi-person text-gray-400 text-lg"></i>
+                    </div>
+                    <input type="text" name="username" id="username"
+                           value="{{ autofill_usr | e }}"
+                           class="block w-full pl-10 pr-3 py-3 text-sm border border-stone-300 rounded-xl
+                                  bg-stone-50 focus:outline-none focus:ring-2 focus:ring-amber-400
+                                  focus:border-transparent transition-colors"
+                           placeholder="Enter username" required autofocus>
+                </div>
+            </div>
+
+            <div>
+                <label for="password" class="block text-xs font-bold text-gray-500 tracking-widest uppercase mb-1">
+                    Password
+                </label>
+                <div class="relative" x-data="{ showPass: false }">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="bi bi-lock text-gray-400 text-lg"></i>
+                    </div>
+                    <input :type="showPass ? 'text' : 'password'" name="password" id="password"
+                           value="{{ autofill_pwd | e }}"
+                           class="block w-full pl-10 pr-10 py-3 text-sm border border-stone-300 rounded-xl
+                                  bg-stone-50 focus:outline-none focus:ring-2 focus:ring-amber-400
+                                  focus:border-transparent transition-colors"
+                           placeholder="Enter password" required>
+                    <button type="button" @click="showPass = !showPass" class="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors">
+                        <i class="bi text-lg" :class="showPass ? 'bi-eye-slash-fill' : 'bi-eye-fill'"></i>
+                    </button>
+                </div>
+            </div>
+
+            <button type="submit"
+                    class="w-full flex justify-center items-center gap-2 py-3 px-4 rounded-xl
+                           text-sm font-bold text-white shadow-md transition-all duration-150
+                           hover:opacity-90 hover:shadow-lg active:scale-[0.98]"
+                    style="background-color: #9A6818;">
+                Sign In&ensp;<i class="bi bi-arrow-right-short text-xl leading-none"></i>
+            </button>
+            <div class="text-center pt-2">
+                <a href="{{ url_for('auth.forgot_password') }}" class="text-sm font-medium text-amber-600 hover:text-amber-700 transition-colors">
+                    Forgot password?
+                </a>
+            </div>
+        </form>
+    </div>
+
+</div>
+</div>
+{% endblock outer_wrap %}

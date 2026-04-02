@@ -1,0 +1,23 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment variables (Never share this publicly!)
+.env
+
+# Database
+*.db
+cafebot.db
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# IDE settings
+.vscode/
+
+# Logs
+*.log
+flask_session_data/

@@ -1,0 +1,849 @@
+{% extends "base.html" %}
+
+{% block head %}
+<style>
+  /* ── Navy accent palette ── */
+  :root {
+    --navy:        #1E3A5F;
+    --navy-light:  #2A4F7F;
+    --navy-muted:  #E8EEF6;
+    --green:       #16A34A;
+    --green-bg:    #DCFCE7;
+    --red:         #DC2626;
+    --red-bg:      #FEE2E2;
+    --grey:        #6B7280;
+    --grey-bg:     #F3F4F6;
+    --amber:       #9A6818;
+    --amber-bg:    #FEF3C7;
+    --progress-h:  6px;
+  }
+
+  /* ── Top action bar ── */
+  .slot-action-bar { display: flex; align-items: center; gap:.75rem; flex-wrap:wrap; }
+  .btn-navy {
+    display:inline-flex; align-items:center; gap:.4rem;
+    padding:.5rem 1rem; border-radius:.6rem; font-size:.8rem; font-weight:600;
+    background:var(--navy); color:#fff; border:none; cursor:pointer;
+    transition: background .15s, transform .1s;
+  }
+  .btn-navy:hover { background:var(--navy-light); transform:translateY(-1px); }
+  .btn-outline {
+    display:inline-flex; align-items:center; gap:.4rem;
+    padding:.5rem 1rem; border-radius:.6rem; font-size:.8rem; font-weight:600;
+    border:1.5px solid #D1D5DB; background:#fff; color:#374151; cursor:pointer;
+    transition: border-color .15s, background .15s, transform .1s;
+  }
+  .btn-outline:hover { border-color:var(--navy); background:var(--navy-muted); transform:translateY(-1px); }
+  .btn-danger-outline {
+    display:inline-flex; align-items:center; gap:.4rem;
+    padding:.5rem 1rem; border-radius:.6rem; font-size:.8rem; font-weight:600;
+    border:1.5px solid #FCA5A5; background:#fff; color:#DC2626; cursor:pointer;
+    transition: background .15s, transform .1s;
+  }
+  .btn-danger-outline:hover { background:var(--red-bg); transform:translateY(-1px); }
+
+  /* ── Cards ── */
+  .panel-card {
+    background:#fff; border-radius:.875rem;
+    border:1px solid #E5E7EB; box-shadow:0 1px 4px rgba(0,0,0,.05);
+  }
+  .card-header {
+    display:flex; align-items:center; gap:.6rem;
+    padding:.875rem 1.25rem; border-bottom:1px solid #F3F4F6;
+    background:linear-gradient(135deg,#F8FAFF 0%,#F0F4FF 100%);
+    border-radius:.875rem .875rem 0 0;
+  }
+  .card-header-icon {
+    width:2rem; height:2rem; border-radius:.5rem;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--navy-muted); color:var(--navy); font-size:1rem;
+  }
+
+  /* ── Filter chips ── */
+  .filter-chips { display:flex; gap:.4rem; flex-wrap:wrap; }
+  .chip {
+    padding:.3rem .75rem; border-radius:99px; font-size:.75rem; font-weight:600;
+    border:1.5px solid #E5E7EB; background:#F9FAFB; color:#374151; cursor:pointer;
+    transition: all .15s;
+  }
+  .chip:hover, .chip.active { border-color:var(--navy); background:var(--navy); color:#fff; }
+
+  /* ── Day group ── */
+  .day-group { border-radius:.75rem; overflow:hidden; border:1px solid #E5E7EB; }
+  .day-header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:.7rem 1.1rem;
+    background:linear-gradient(90deg, var(--navy) 0%, var(--navy-light) 100%);
+    cursor:pointer; user-select:none;
+  }
+  .day-badge {
+    display:inline-flex; align-items:center; gap:.5rem;
+    font-size:.85rem; font-weight:700; color:#fff;
+  }
+  .day-meta { display:flex; align-items:center; gap:.75rem; font-size:.72rem; color:rgba(255,255,255,.8); }
+  .day-pill {
+    padding:.15rem .5rem; border-radius:99px; font-size:.7rem; font-weight:600;
+    background:rgba(255,255,255,.15); color:#fff;
+  }
+
+  /* ── Slot rows ── */
+  .slot-table { width:100%; border-collapse:collapse; }
+  .slot-table thead tr {
+    background:#F8FAFF; font-size:.7rem; font-weight:700; text-transform:uppercase;
+    letter-spacing:.05em; color:#6B7280;
+  }
+  .slot-table th { padding:.6rem 1rem; border-bottom:1px solid #F3F4F6; white-space:nowrap; }
+  .slot-table td { padding:.65rem 1rem; border-bottom:1px solid #F9FAFB; }
+  .slot-table tbody tr:last-child td { border-bottom:none; }
+  .slot-table tbody tr { transition:background .12s; }
+  .slot-table tbody tr:hover { background:#FAFBFF; }
+
+  /* ── Status badges ── */
+  .badge {
+    display:inline-flex; align-items:center; gap:.3rem;
+    padding:.2rem .6rem; border-radius:99px; font-size:.7rem; font-weight:700;
+    white-space:nowrap;
+  }
+  .badge-available { background:var(--green-bg);  color:var(--green); }
+  .badge-full      { background:var(--red-bg);    color:var(--red);   }
+  .badge-past      { background:var(--grey-bg);   color:var(--grey);  }
+
+  /* ── Progress bar ── */
+  .progress-wrap { width:80px; background:#E5E7EB; border-radius:99px; height:var(--progress-h); overflow:hidden; }
+  .progress-bar  { height:100%; border-radius:99px; transition:width .4s ease; }
+  .progress-bar.green { background:var(--green); }
+  .progress-bar.amber { background:#F59E0B; }
+  .progress-bar.red   { background:var(--red); }
+
+  /* ── Inline edit ── */
+  .inline-cap-form { display:flex; align-items:center; gap:.3rem; }
+  .inline-cap-input {
+    width:52px; padding:.2rem .4rem; border:1px solid #D1D5DB; border-radius:.4rem;
+    font-size:.8rem; text-align:center;
+  }
+  .inline-cap-input:focus { outline:none; border-color:var(--navy); }
+  .inline-cap-btn {
+    padding:.2rem .45rem; border-radius:.4rem; font-size:.72rem; font-weight:600;
+    background:var(--navy-muted); color:var(--navy); border:none; cursor:pointer;
+    transition:background .12s;
+  }
+  .inline-cap-btn:hover { background:var(--navy); color:#fff; }
+
+  /* ── Insights strip ── */
+  .insight-card {
+    flex:1; min-width:160px; padding:1rem 1.25rem;
+    border-radius:.75rem; background:#fff; border:1px solid #E5E7EB;
+    box-shadow:0 1px 3px rgba(0,0,0,.04);
+  }
+  .insight-label { font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:#6B7280; }
+  .insight-value { font-size:1.5rem; font-weight:800; color:var(--navy); margin:.2rem 0 0; line-height:1; }
+  .insight-sub   { font-size:.72rem; color:#9CA3AF; margin-top:.25rem; }
+
+  /* ── Modal ── */
+  .modal-backdrop {
+    position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:100;
+    display:flex; align-items:center; justify-content:center;
+    backdrop-filter:blur(3px);
+  }
+  .modal-box {
+    background:#fff; border-radius:1rem; width:min(540px,96vw);
+    max-height:90vh; overflow-y:auto;
+    box-shadow:0 20px 60px rgba(0,0,0,.18);
+    animation: modalIn .2s ease;
+  }
+  @keyframes modalIn { from { opacity:0; transform:translateY(-16px) scale(.97); } to { opacity:1; transform:none; } }
+  .modal-header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:1.1rem 1.4rem; border-bottom:1px solid #F3F4F6;
+    background:linear-gradient(135deg,#F8FAFF,#EEF3FF);
+    border-radius:1rem 1rem 0 0;
+  }
+  .modal-header h3 { margin:0; font-size:1rem; font-weight:700; color:var(--navy); }
+  .modal-close { background:none; border:none; cursor:pointer; color:#6B7280; font-size:1.25rem; transition:color .12s; }
+  .modal-close:hover { color:var(--red); }
+  .modal-body { padding:1.4rem; }
+  .modal-footer { padding:.9rem 1.4rem; border-top:1px solid #F3F4F6; display:flex; justify-content:flex-end; gap:.6rem; }
+
+  /* ── Schedule time list ── */
+  .time-row { display:flex; align-items:center; gap:.5rem; margin-bottom:.5rem; }
+  .time-row input[type=text] {
+    flex:1; padding:.4rem .7rem; border:1.5px solid #D1D5DB; border-radius:.5rem; font-size:.82rem;
+  }
+  .time-row input[type=text]:focus { outline:none; border-color:var(--navy); }
+  .remove-time { background:none; border:none; cursor:pointer; color:#9CA3AF; font-size:1rem; transition:color .12s; }
+  .remove-time:hover { color:var(--red); }
+
+  /* ── Tooltip ── */
+  [data-tooltip] { position:relative; cursor:help; }
+  [data-tooltip]::after {
+    content: attr(data-tooltip);
+    position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%);
+    background:#1F2937; color:#fff; font-size:.68rem; padding:.3rem .55rem;
+    border-radius:.35rem; white-space:nowrap; pointer-events:none;
+    opacity:0; transition:opacity .15s;
+    z-index:50;
+  }
+  [data-tooltip]:hover::after { opacity:1; }
+
+  /* ── Confirm overlay ── */
+  .confirm-overlay {
+    position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:200;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .confirm-box {
+    background:#fff; border-radius:.875rem; padding:1.6rem 2rem;
+    width:min(380px,92vw); box-shadow:0 16px 48px rgba(0,0,0,.2);
+    animation:modalIn .18s ease;
+  }
+  .confirm-box h4 { margin:0 0 .4rem; font-size:1rem; color:#111827; }
+  .confirm-box p  { margin:0 0 1.2rem; font-size:.82rem; color:#6B7280; }
+  .confirm-actions { display:flex; gap:.5rem; justify-content:flex-end; }
+
+  /* ── Responsive ── */
+  @media(max-width:768px){
+    .two-col { flex-direction:column; }
+    .slot-table th:nth-child(4),
+    .slot-table td:nth-child(4) { display:none; } /* hide trend on mobile */
+    .insight-card { min-width:140px; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+{% set now_str = today_str %}
+
+{# ─── Top Action Bar ─── #}
+<div class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <div>
+    <p class="text-sm text-gray-500 mt-0.5">
+      Slots generated for the next <strong>{{ days_ahead }} days</strong>
+      &nbsp;·&nbsp; {{ slots|length }} slot{{ 's' if slots|length != 1 }}
+    </p>
+  </div>
+  <div class="slot-action-bar">
+    <button class="btn-outline" onclick="openScheduleModal()">
+      <i class="bi bi-gear-fill"></i> Edit Schedule
+    </button>
+    <a href="{{ url_for('admin.export_slots_csv') }}" class="btn-outline">
+      <i class="bi bi-download"></i> Export CSV
+    </a>
+    <form method="POST" action="{{ url_for('admin.regenerate_slots') }}" class="m-0">
+      <button type="submit" class="btn-navy">
+        <i class="bi bi-arrow-clockwise"></i> Re-generate
+      </button>
+    </form>
+  </div>
+</div>
+
+{# ─── Two-column layout ─── #}
+<div class="flex gap-5 two-col mb-6" style="align-items:flex-start;">
+
+  {# ── Left: Schedule Config Card ── #}
+  <div style="width:280px;flex-shrink:0;">
+    <div class="panel-card">
+      <div class="card-header">
+        <div class="card-header-icon"><i class="bi bi-calendar3"></i></div>
+        <div>
+          <div class="font-bold text-sm text-gray-900">Slot Schedule</div>
+          <div class="text-xs text-gray-400">Auto-generated daily</div>
+        </div>
+      </div>
+      <div class="p-4 space-y-4">
+
+        {# Config pills #}
+        <div class="grid grid-cols-2 gap-2">
+          <div class="rounded-lg p-2.5 text-center" style="background:var(--navy-muted);">
+            <div class="text-xs text-gray-500 mb-0.5">
+              <span data-tooltip="Max guests per time slot">Capacity ℹ</span>
+            </div>
+            <div class="font-bold text-sm" style="color:var(--navy);">{{ capacity }} guests</div>
+          </div>
+          <div class="rounded-lg p-2.5 text-center" style="background:var(--navy-muted);">
+            <div class="text-xs text-gray-500 mb-0.5">
+              <span data-tooltip="How many days ahead slots are generated">Days Ahead ℹ</span>
+            </div>
+            <div class="font-bold text-sm" style="color:var(--navy);">{{ days_ahead }} days</div>
+          </div>
+        </div>
+
+        {# Schedule list #}
+        <div>
+          <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Daily Schedule</p>
+          <ul class="space-y-1">
+            {% for s in schedule %}
+            <li class="flex items-center gap-2 text-sm text-gray-700">
+              <i class="bi bi-clock text-xs" style="color:var(--navy);"></i> {{ s }}
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+
+        {# Status pills #}
+        <div class="space-y-1.5 pt-1 border-t border-gray-100">
+          <div class="flex items-center gap-2 text-xs text-gray-600">
+            <i class="bi bi-check-circle-fill text-green-500"></i>
+            Cancelled slots freed instantly
+          </div>
+          <div class="flex items-center gap-2 text-xs text-gray-600">
+            <i class="bi bi-check-circle-fill text-green-500"></i>
+            Past slots hidden from booking flow
+          </div>
+          <div class="flex items-center gap-2 text-xs text-gray-600">
+            <i class="bi bi-check-circle-fill text-green-500"></i>
+            Auto-refreshes every 30 min
+          </div>
+        </div>
+
+        {# Edit button #}
+        <button class="btn-navy w-full justify-center" onclick="openScheduleModal()">
+          <i class="bi bi-pencil-fill"></i> Edit Schedule
+        </button>
+
+      </div>
+    </div>
+
+    {# ── Bulk Actions ── #}
+    <div class="panel-card mt-4">
+      <div class="card-header">
+        <div class="card-header-icon"><i class="bi bi-lightning-fill"></i></div>
+        <div class="font-bold text-sm text-gray-900">Bulk Actions</div>
+      </div>
+      <div class="p-4 space-y-2">
+        <p class="text-xs text-gray-400 mb-3">Apply to all upcoming slots at once.</p>
+        <button class="btn-danger-outline w-full justify-center"
+                onclick="confirmAction('clear_week','Delete ALL upcoming slots? This cannot be undone.')">
+          <i class="bi bi-trash3-fill"></i> Clear Next {{ days_ahead }} Days
+        </button>
+        <form method="POST" action="{{ url_for('admin.regenerate_slots') }}" class="m-0">
+          <button type="submit" class="btn-outline w-full justify-center">
+            <i class="bi bi-arrow-repeat"></i> Re-generate All
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  {# ── Right: Slots Panel ── #}
+  <div class="flex-1 min-w-0">
+
+    {# Filter + search bar #}
+    <div class="panel-card mb-4">
+      <div class="p-3 flex items-center gap-3 flex-wrap">
+        <div class="filter-chips" id="filterChips">
+          <button class="chip active" data-filter="all">All</button>
+          <button class="chip" data-filter="morning">🌅 Morning</button>
+          <button class="chip" data-filter="afternoon">☀️ Afternoon</button>
+          <button class="chip" data-filter="evening">🌙 Evening</button>
+          <button class="chip" data-filter="available">🟢 Available</button>
+          <button class="chip" data-filter="full">🔴 Full</button>
+        </div>
+        <div class="ml-auto">
+          <input type="text" id="slotSearch" placeholder="Search date or time…"
+                 class="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-blue-400"
+                 oninput="applyFilter()">
+        </div>
+      </div>
+    </div>
+
+    {# Slot groups #}
+    {% if slots %}
+      {% set ns = namespace(prev_date=None, date_slots=[]) %}
+
+      {# Group slots by date in Jinja #}
+      {% set grouped = {} %}
+      {% for slot in slots %}
+        {% if slot.date not in grouped %}
+          {% set _ = grouped.update({slot.date: []}) %}
+        {% endif %}
+        {% set _ = grouped[slot.date].append(slot) %}
+      {% endfor %}
+
+      <div id="slotGroups" class="space-y-3">
+      {% for day_date, day_slots in grouped.items() %}
+        {% set total = day_slots|length %}
+        {% set full_count = day_slots | selectattr('fill_pct', '>=', 100) | list | length %}
+        {% set avail_count = total - full_count %}
+        {% set is_past = day_date < now_str %}
+
+        <div class="day-group slot-day-group"
+             data-date="{{ day_date }}"
+             data-past="{{ 'true' if is_past else 'false' }}">
+
+          {# Day header #}
+          <div class="day-header" onclick="toggleDay(this)">
+            <div class="day-badge">
+              <i class="bi bi-calendar-event text-white/70 text-sm"></i>
+              {{ day_date }}
+              {% if is_past %}
+                <span class="badge badge-past" style="font-size:.65rem;">Past</span>
+              {% elif day_date == now_str %}
+                <span style="background:#F59E0B;color:#fff;padding:.1rem .45rem;border-radius:99px;font-size:.65rem;font-weight:700;">Today</span>
+              {% endif %}
+            </div>
+            <div class="day-meta">
+              <span>{{ total }} slot{{ 's' if total != 1 }}</span>
+              {% if full_count %}<span class="day-pill">{{ full_count }} full</span>{% endif %}
+              <span class="day-pill" style="background:rgba(134,239,172,.25);color:#fff;">{{ avail_count }} avail</span>
+
+              {# Delete day button #}
+              <form method="POST" action="{{ url_for('admin.manage_slots') }}"
+                    class="m-0" onsubmit="return confirm('Delete all {{ total }} slots for {{ day_date }}?');">
+                <input type="hidden" name="action" value="delete_day">
+                <input type="hidden" name="target_date" value="{{ day_date }}">
+                <button type="submit"
+                        class="text-white/60 hover:text-white transition-colors text-sm ml-1"
+                        title="Delete all slots for this day"
+                        onclick="event.stopPropagation()">
+                  <i class="bi bi-trash3"></i>
+                </button>
+              </form>
+              <i class="bi bi-chevron-down text-white/60 transition-transform" id="chev-{{ day_date|replace('-','') }}"></i>
+            </div>
+          </div>
+
+          {# Slot rows #}
+          <div class="day-body" id="body-{{ day_date|replace('-','') }}">
+            <table class="slot-table">
+              <thead>
+                <tr>
+                  <th class="text-left">Time</th>
+                  <th class="text-left">Status</th>
+                  <th class="text-left">
+                    <span data-tooltip="Max guests allowed in this slot">Capacity</span>
+                  </th>
+                  <th class="text-left">Fill</th>
+                  <th class="text-left">
+                    <span data-tooltip="% of capacity booked for this time slot across the week">Trend</span>
+                  </th>
+                  <th class="text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+              {% for slot in day_slots %}
+                {% set cap = slot.max_cap or 30 %}
+                {% set booked = slot.booked_guests or 0 %}
+                {% set pct = slot.fill_pct or 0 %}
+                {% set is_slot_past = is_past %}
+                {% set is_full = booked >= cap %}
+
+                {# Determine period for filtering #}
+                {# Convert 12h time to 24h for period classification #}
+                {% set _raw_hour = slot.slot_time.split(':')[0] | int %}
+                {% set _is_pm = 'PM' in slot.slot_time.upper() %}
+                {% if _is_pm and _raw_hour != 12 %}
+                  {% set hour_24 = _raw_hour + 12 %}
+                {% elif not _is_pm and _raw_hour == 12 %}
+                  {% set hour_24 = 0 %}
+                {% else %}
+                  {% set hour_24 = _raw_hour %}
+                {% endif %}
+                {% if hour_24 < 12 %}{% set period = 'morning' %}
+                {% elif hour_24 < 16 %}{% set period = 'afternoon' %}
+                {% else %}{% set period = 'evening' %}{% endif %}
+
+                {% if is_slot_past %}{% set status_class = 'past' %}
+                {% elif is_full %}{% set status_class = 'full' %}
+                {% else %}{% set status_class = 'available' %}{% endif %}
+
+                <tr class="slot-row"
+                    data-period="{{ period }}"
+                    data-status="{{ status_class }}"
+                    data-time="{{ slot.slot_time }}"
+                    data-date="{{ slot.date }}">
+
+                  {# Time #}
+                  <td class="font-semibold text-gray-900" style="font-size:.82rem;">
+                    <i class="bi bi-clock text-gray-400 mr-1" style="font-size:.75rem;"></i>
+                    {{ slot.slot_time }}
+                  </td>
+
+                  {# Status badge — color + text label (accessible) #}
+                  <td>
+                    {% if is_slot_past %}
+                      <span class="badge badge-past"><i class="bi bi-dash-circle"></i> Past</span>
+                    {% elif is_full %}
+                      <span class="badge badge-full"><i class="bi bi-x-circle-fill"></i> Full</span>
+                    {% else %}
+                      <span class="badge badge-available"><i class="bi bi-check-circle-fill"></i> Available</span>
+                    {% endif %}
+                  </td>
+
+                  {# Inline capacity edit #}
+                  <td>
+                    <div class="inline-cap-form" id="cap-form-{{ slot.id }}">
+                      <i class="bi bi-people text-gray-400" style="font-size:.75rem;"></i>
+                      <input type="number" class="inline-cap-input" value="{{ cap }}"
+                             min="1" max="500" id="cap-input-{{ slot.id }}"
+                             aria-label="Capacity for slot {{ slot.slot_time }}">
+                      <button class="inline-cap-btn" onclick="saveCapacity({{ slot.id }})"
+                              title="Save capacity">
+                        <i class="bi bi-check2"></i>
+                      </button>
+                    </div>
+                  </td>
+
+                  {# Fill progress #}
+                  <td>
+                    <div class="flex items-center gap-2">
+                      <div class="progress-wrap">
+                        <div class="progress-bar {{ 'red' if pct >= 90 else 'amber' if pct >= 60 else 'green' }}"
+                             style="width:{{ [pct, 100]|min }}%;"></div>
+                      </div>
+                      <span class="text-xs text-gray-500">{{ booked }}/{{ cap }}</span>
+                    </div>
+                  </td>
+
+                  {# Trend (from stats API, populated by JS) #}
+                  <td>
+                    <span class="trend-badge text-xs text-gray-400"
+                          data-slot-time="{{ slot.slot_time }}">—</span>
+                  </td>
+
+                  {# Delete action #}
+                  <td class="text-right">
+                    <form method="POST" action="{{ url_for('admin.manage_slots') }}"
+                          class="inline m-0"
+                          onsubmit="return confirm('Delete this slot? Existing bookings are not affected.');">
+                      <input type="hidden" name="action" value="delete">
+                      <input type="hidden" name="slot_id" value="{{ slot.id }}">
+                      <button type="submit"
+                              class="text-xs px-2.5 py-1 rounded-lg border border-red-200 text-red-500
+                                     hover:bg-red-50 transition-colors inline-flex items-center gap-1"
+                              title="Delete this slot">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      {% endfor %}
+      </div>
+
+    {% else %}
+      <div class="panel-card text-center py-16">
+        <i class="bi bi-calendar-x text-5xl text-gray-200 block mb-4"></i>
+        <p class="text-gray-500 font-semibold">No time slots yet.</p>
+        <p class="text-gray-400 text-sm mt-1">Click <strong>Re-generate</strong> to create them.</p>
+      </div>
+    {% endif %}
+  </div>{# end right #}
+</div>{# end two-col #}
+
+{# ─── Insights Strip ─── #}
+<div class="panel-card mb-6">
+  <div class="card-header">
+    <div class="card-header-icon"><i class="bi bi-bar-chart-fill"></i></div>
+    <div>
+      <div class="font-bold text-sm text-gray-900">Booking Insights</div>
+      <div class="text-xs text-gray-400">Across upcoming slots · auto-refreshes every 2 min</div>
+    </div>
+    <button onclick="fetchStats()" class="ml-auto btn-outline" style="padding:.3rem .75rem;font-size:.72rem;">
+      <i class="bi bi-arrow-clockwise"></i> Refresh
+    </button>
+  </div>
+  <div class="p-4">
+    <div class="flex gap-3 flex-wrap" id="insightStrip">
+      <div class="insight-card">
+        <div class="insight-label">Busiest Slot</div>
+        <div class="insight-value" id="ins-busiest">—</div>
+        <div class="insight-sub" id="ins-busiest-sub">loading…</div>
+      </div>
+      <div class="insight-card">
+        <div class="insight-label">Evening Fill Rate</div>
+        <div class="insight-value" id="ins-evening">—</div>
+        <div class="insight-sub">Avg. across 4 PM–8 PM slots</div>
+      </div>
+      <div class="insight-card">
+        <div class="insight-label">Morning Fill Rate</div>
+        <div class="insight-value" id="ins-morning">—</div>
+        <div class="insight-sub">Avg. across 10 AM–12 PM slots</div>
+      </div>
+      <div class="insight-card">
+        <div class="insight-label">Overall Fill Rate</div>
+        <div class="insight-value" id="ins-overall">—</div>
+        <div class="insight-sub">All upcoming slots</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ─────────────────────────────────────────────────────
+   MODALS & OVERLAYS
+──────────────────────────────────────────────────────── #}
+
+{# ── Edit Schedule Modal ── #}
+<div id="scheduleModal" class="modal-backdrop" style="display:none;" role="dialog" aria-modal="true" aria-label="Edit Slot Schedule">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3><i class="bi bi-gear-fill mr-2" style="color:var(--navy);"></i>Edit Slot Schedule</h3>
+      <button class="modal-close" onclick="closeScheduleModal()" aria-label="Close">&times;</button>
+    </div>
+    <form method="POST" action="{{ url_for('admin.update_slot_schedule') }}" id="scheduleForm">
+      <div class="modal-body space-y-5">
+
+        {# Time slots #}
+        <div>
+          <label class="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">
+            Time Slots
+            <span class="ml-1 font-normal normal-case text-gray-400">(Format: 10:00 AM - 11:00 AM)</span>
+          </label>
+          <div id="timeSlotList">
+            {% for s in schedule %}
+            <div class="time-row">
+              <input type="text" name="slot_times" value="{{ s }}"
+                     placeholder="10:00 AM - 11:00 AM"
+                     pattern="^\d{1,2}:\d{2}\s?[APap][Mm]\s?-\s?\d{1,2}:\d{2}\s?[APap][Mm]$"
+                     title="Use format: H:MM AM - H:MM AM">
+              <button type="button" class="remove-time" onclick="removeTimeRow(this)" title="Remove this slot">
+                <i class="bi bi-x-circle"></i>
+              </button>
+            </div>
+            {% endfor %}
+          </div>
+          <button type="button" class="btn-outline mt-2" style="font-size:.75rem;padding:.35rem .8rem;" onclick="addTimeRow()">
+            <i class="bi bi-plus-lg"></i> Add Slot
+          </button>
+        </div>
+
+        {# Capacity #}
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-1">
+              <span data-tooltip="Max guests allowed per time slot">Capacity per Slot ℹ</span>
+            </label>
+            <input type="number" name="capacity" value="{{ capacity }}" min="1" max="500"
+                   class="inline-cap-input w-full" style="width:100%;padding:.5rem .75rem;"
+                   required aria-label="Slot capacity">
+          </div>
+          <div>
+            <label class="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-1">
+              <span data-tooltip="How many calendar days ahead to pre-generate slots">Days Ahead ℹ</span>
+            </label>
+            <input type="number" name="days_ahead" value="{{ days_ahead }}" min="1" max="90"
+                   class="inline-cap-input w-full" style="width:100%;padding:.5rem .75rem;"
+                   required aria-label="Days ahead">
+          </div>
+        </div>
+
+        <div class="rounded-lg p-3 text-xs text-amber-700 border border-amber-200" style="background:#FFFBEB;">
+          <i class="bi bi-info-circle-fill mr-1"></i>
+          After saving, click <strong>Re-generate</strong> on the main page to apply the new schedule.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-outline" onclick="closeScheduleModal()">Cancel</button>
+        <button type="submit" class="btn-navy"><i class="bi bi-floppy-fill"></i> Save Schedule</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# ── Confirm Dialog ── #}
+<div id="confirmOverlay" class="confirm-overlay" style="display:none;" role="alertdialog" aria-modal="true">
+  <div class="confirm-box">
+    <h4><i class="bi bi-exclamation-triangle-fill text-amber-500 mr-2"></i>Confirm Action</h4>
+    <p id="confirmMsg">Are you sure?</p>
+    <div class="confirm-actions">
+      <button class="btn-outline" onclick="closeConfirm()">Cancel</button>
+      <form method="POST" action="{{ url_for('admin.manage_slots') }}" id="confirmForm" class="m-0">
+        <input type="hidden" name="action" id="confirmAction">
+        <button type="submit" class="btn-danger-outline">Yes, proceed</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ══════════════════════════════════════════════════
+   FILTER & SEARCH
+══════════════════════════════════════════════════ */
+let activeFilter = 'all';
+
+document.getElementById('filterChips').addEventListener('click', e => {
+  const chip = e.target.closest('.chip');
+  if (!chip) return;
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  chip.classList.add('active');
+  activeFilter = chip.dataset.filter;
+  applyFilter();
+});
+
+function applyFilter() {
+  const q = (document.getElementById('slotSearch').value || '').toLowerCase();
+  document.querySelectorAll('.slot-row').forEach(row => {
+    const period  = row.dataset.period;
+    const status  = row.dataset.status;
+    const time    = (row.dataset.time || '').toLowerCase();
+    const date    = (row.dataset.date || '').toLowerCase();
+
+    const matchesFilter =
+      activeFilter === 'all' ||
+      activeFilter === period ||
+      activeFilter === status;
+
+    const matchesSearch = !q || time.includes(q) || date.includes(q);
+
+    row.style.display = matchesFilter && matchesSearch ? '' : 'none';
+  });
+
+  // Hide empty day groups
+  document.querySelectorAll('.slot-day-group').forEach(group => {
+    const visible = group.querySelectorAll('.slot-row:not([style*="display: none"]):not([style*="display:none"])').length;
+    group.style.display = visible ? '' : 'none';
+  });
+}
+
+/* ══════════════════════════════════════════════════
+   COLLAPSIBLE DAY GROUPS
+══════════════════════════════════════════════════ */
+function toggleDay(header) {
+  const dateKey = header.closest('.day-group').dataset.date.replace(/-/g,'');
+  const body  = document.getElementById('body-' + dateKey);
+  const chev  = document.getElementById('chev-' + dateKey);
+  const open  = body.style.display !== 'none';
+  body.style.display = open ? 'none' : '';
+  if (chev) chev.style.transform = open ? 'rotate(-90deg)' : '';
+}
+
+/* ══════════════════════════════════════════════════
+   INLINE CAPACITY SAVE
+══════════════════════════════════════════════════ */
+async function saveCapacity(slotId) {
+  const input = document.getElementById('cap-input-' + slotId);
+  const val   = parseInt(input.value, 10);
+  if (!val || val < 1 || val > 500) {
+    input.style.borderColor = 'var(--red)';
+    return;
+  }
+  input.style.borderColor = '';
+  const btn = input.nextElementSibling;
+  btn.innerHTML = '<i class="bi bi-hourglass-split"></i>';
+
+  try {
+    const fd = new FormData();
+    fd.append('capacity', val);
+    const res = await fetch(`/admin/slots/${slotId}/capacity`, { method:'POST', body:fd });
+    const data = await res.json();
+    if (data.ok) {
+      btn.innerHTML = '<i class="bi bi-check2" style="color:var(--green);"></i>';
+      setTimeout(() => btn.innerHTML = '<i class="bi bi-check2"></i>', 1500);
+    } else {
+      btn.innerHTML = '<i class="bi bi-x" style="color:var(--red);"></i>';
+      setTimeout(() => btn.innerHTML = '<i class="bi bi-check2"></i>', 1500);
+      alert(data.error || 'Update failed.');
+    }
+  } catch(e) {
+    btn.innerHTML = '<i class="bi bi-x" style="color:var(--red);"></i>';
+    setTimeout(() => btn.innerHTML = '<i class="bi bi-check2"></i>', 1500);
+  }
+}
+
+/* ══════════════════════════════════════════════════
+   SCHEDULE MODAL
+══════════════════════════════════════════════════ */
+function openScheduleModal()  { document.getElementById('scheduleModal').style.display = 'flex'; }
+function closeScheduleModal() { document.getElementById('scheduleModal').style.display = 'none'; }
+
+document.getElementById('scheduleModal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeScheduleModal();
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeScheduleModal(); closeConfirm(); }
+});
+
+function addTimeRow() {
+  const list = document.getElementById('timeSlotList');
+  const row  = document.createElement('div');
+  row.className = 'time-row';
+  row.innerHTML = `
+    <input type="text" name="slot_times" placeholder="10:00 AM - 11:00 AM"
+           pattern="^\\d{1,2}:\\d{2}\\s?[APap][Mm]\\s?-\\s?\\d{1,2}:\\d{2}\\s?[APap][Mm]$"
+           title="Use format: H:MM AM - H:MM AM">
+    <button type="button" class="remove-time" onclick="removeTimeRow(this)" title="Remove">
+      <i class="bi bi-x-circle"></i>
+    </button>`;
+  list.appendChild(row);
+  row.querySelector('input').focus();
+}
+
+function removeTimeRow(btn) {
+  const list = document.getElementById('timeSlotList');
+  if (list.querySelectorAll('.time-row').length <= 1) {
+    alert('Schedule must have at least one time slot.');
+    return;
+  }
+  btn.closest('.time-row').remove();
+}
+
+/* ══════════════════════════════════════════════════
+   CONFIRM OVERLAY
+══════════════════════════════════════════════════ */
+function confirmAction(action, msg) {
+  document.getElementById('confirmMsg').textContent    = msg;
+  document.getElementById('confirmAction').value       = action;
+  document.getElementById('confirmOverlay').style.display = 'flex';
+}
+function closeConfirm() {
+  document.getElementById('confirmOverlay').style.display = 'none';
+}
+
+/* ══════════════════════════════════════════════════
+   STATS / INSIGHTS
+══════════════════════════════════════════════════ */
+async function fetchStats() {
+  try {
+    const res  = await fetch('{{ url_for("admin.slot_stats_api") }}');
+    const data = await res.json();
+    if (!Array.isArray(data) || !data.length) return;
+
+    // Populate trend badges on each slot row
+    data.forEach(stat => {
+      document.querySelectorAll(`.trend-badge[data-slot-time="${stat.slot_time}"]`).forEach(el => {
+        const pct = stat.fill_pct;
+        const color = pct >= 80 ? 'var(--red)' : pct >= 50 ? '#F59E0B' : 'var(--green)';
+        el.textContent = `${pct}% booked`;
+        el.style.color  = color;
+        el.style.fontWeight = '600';
+      });
+    });
+
+    // Busiest slot
+    const busiest = data.reduce((a, b) => (b.fill_pct > a.fill_pct ? b : a), data[0]);
+    document.getElementById('ins-busiest').textContent     = busiest.slot_time;
+    document.getElementById('ins-busiest-sub').textContent = `${busiest.fill_pct}% booked`;
+
+    // Evening slots (4 PM onwards → hour >= 16 in 24h; but labels are 12h format)
+    const eveningHourKeywords = ['4:00 PM','5:00 PM','6:00 PM','7:00 PM','8:00 PM'];
+    const evening = data.filter(s => eveningHourKeywords.some(k => s.slot_time.includes(k.split(' ')[0] + ':00 PM') || s.slot_time.startsWith(k)));
+    const evAvg   = evening.length ? Math.round(evening.reduce((a,b) => a+b.fill_pct,0)/evening.length) : 0;
+    document.getElementById('ins-evening').textContent = evAvg + '%';
+
+    // Morning slots
+    const morningKeywords = ['10:00 AM','11:00 AM'];
+    const morning = data.filter(s => morningKeywords.some(k => s.slot_time.startsWith(k.split(':')[0])));
+    const mrAvg   = morning.length ? Math.round(morning.reduce((a,b) => a+b.fill_pct,0)/morning.length) : 0;
+    document.getElementById('ins-morning').textContent = mrAvg + '%';
+
+    // Overall
+    const overall = Math.round(data.reduce((a,b) => a+b.fill_pct,0)/data.length);
+    document.getElementById('ins-overall').textContent = overall + '%';
+
+  } catch(e) {
+    console.warn('Stats fetch failed', e);
+  }
+}
+
+// Auto-refresh every 2 minutes
+fetchStats();
+setInterval(fetchStats, 120_000);
+</script>
+{% endblock %}

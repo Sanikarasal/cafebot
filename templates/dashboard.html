@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6 mt-2">
+    <h1 class="text-2xl font-bold text-gray-900 tracking-tight"></h1>
+    <div class="text-sm text-gray-500 bg-white px-3 py-1.5 rounded-full border border-gray-200 shadow-sm flex items-center gap-2">
+        <i class="bi bi-clock text-primary-500"></i><span id="liveClock" class="font-medium">Loading Time...</span>
+    </div>
+</div>
+
+<!-- Real-time Dashboard Container -->
+<div x-data="adminDashboard()" x-init="startPolling()">
+    <!-- Key Metrics Row -->
+    <div class="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-8">
+        
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-shadow">
+        <h6 class="text-xs text-gray-500 uppercase font-bold tracking-wider mb-2">Total Tables</h6>
+        <div class="flex items-center gap-3">
+            <div class="p-3 bg-primary-50 text-primary-600 rounded-lg">
+                <i class="bi bi-grid-3x3-gap text-xl leading-none"></i>
+            </div>
+            <h2 class="text-3xl font-bold text-gray-900" x-text="metrics.total_tables"></h2>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-shadow">
+        <h6 class="text-xs text-gray-500 uppercase font-bold tracking-wider mb-2">Today's Bookings</h6>
+        <div class="flex items-center gap-3">
+            <div class="p-3 bg-green-50 text-green-600 rounded-lg">
+                <i class="bi bi-calendar-check text-xl leading-none"></i>
+            </div>
+            <h2 class="text-3xl font-bold text-gray-900" x-text="metrics.todays_bookings"></h2>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-shadow">
+        <h6 class="text-xs text-gray-500 uppercase font-bold tracking-wider mb-2">Guests Today</h6>
+        <div class="flex items-center gap-3">
+            <div class="p-3 bg-blue-50 text-blue-600 rounded-lg">
+                <i class="bi bi-people text-xl leading-none"></i>
+            </div>
+            <h2 class="text-3xl font-bold text-gray-900" x-text="metrics.todays_guests"></h2>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-shadow">
+        <h6 class="text-xs text-gray-500 uppercase font-bold tracking-wider mb-2">Available Tables</h6>
+        <div class="flex items-center gap-3">
+            <div class="p-3 bg-yellow-50 text-yellow-600 rounded-lg">
+                <i class="bi bi-check-circle text-xl leading-none"></i>
+            </div>
+            <h2 class="text-3xl font-bold text-gray-900" x-text="metrics.available_tables"></h2>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-shadow">
+        <h6 class="text-xs text-gray-500 uppercase font-bold tracking-wider mb-2">Waitlist</h6>
+        <div class="flex items-center gap-3">
+            <div class="p-3 bg-red-50 text-red-600 rounded-lg">
+                <i class="bi bi-hourglass-split text-xl leading-none"></i>
+            </div>
+            <h2 class="text-3xl font-bold text-gray-900" x-text="metrics.waitlist_count"></h2>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-shadow">
+        <h6 class="text-xs text-gray-500 uppercase font-bold tracking-wider mb-2">Revenue Today</h6>
+        <div class="flex items-center gap-3">
+            <div class="p-3 bg-green-50 text-green-600 rounded-lg">
+                <i class="bi bi-currency-rupee text-xl leading-none"></i>
+            </div>
+            <h2 class="text-3xl font-bold text-gray-900" x-text="'\u20B9' + metrics.revenue_today"></h2>
+        </div>
+    </div>
+</div>
+
+
+<!-- Recent Bookings -->
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+    <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+        <h5 class="font-bold text-gray-900 m-0">Recent Bookings</h5>
+        <a href="{{ url_for('admin.all_bookings') }}" class="text-sm font-medium text-primary-600 hover:text-primary-700 hover:bg-primary-50 px-3 py-1.5 rounded-lg border border-primary-200 transition-colors">
+            View All
+        </a>
+    </div>
+    <div class="p-0 overflow-x-auto">
+        <table class="w-full text-left border-collapse whitespace-nowrap" x-show="recent_bookings.length > 0">
+            <thead>
+                <tr class="bg-gray-50 text-xs uppercase tracking-wider text-gray-500 font-semibold border-b border-gray-200">
+                    <th class="py-3 px-6">ID</th>
+                    <th class="py-3 px-6">Customer</th>
+                    <th class="py-3 px-6">Phone</th>
+                    <th class="py-3 px-6">Date & Time</th>
+                    <th class="py-3 px-6">Guests</th>
+                    <th class="py-3 px-6">Table</th>
+                    <th class="py-3 px-6">Status</th>
+                    <th class="py-3 px-6 text-right">Action</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                <template x-for="booking in recent_bookings" :key="booking.id">
+                    <tr class="hover:bg-gray-50/50 transition-colors text-sm">
+                        <td class="py-3 px-6 text-gray-500" x-text="'#' + booking.id"></td>
+                        <td class="py-3 px-6 font-medium text-gray-900" x-text="booking.name"></td>
+                        <td class="py-3 px-6">
+                            <div class="text-gray-600" x-text="booking.phone"></div>
+                            
+                            <template x-if="booking.phone && !booking.phone.startsWith('walkin:')">
+                                <div>
+                                    <template x-if="booking.is_messageable">
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700 mt-1 uppercase tracking-wide">Messageable</span>
+                                    </template>
+                                    <template x-if="!booking.is_messageable">
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-500 mt-1 uppercase tracking-wide">Session Expired</span>
+                                    </template>
+                                </div>
+                            </template>
+                        </td>
+                        <td class="py-3 px-6">
+                            <div class="text-gray-900" x-text="booking.date"></div>
+                            <div class="text-xs text-gray-500" x-text="booking.slot_time"></div>
+                        </td>
+                        <td class="py-3 px-6 text-gray-600" x-text="booking.seats"></td>
+                        <td class="py-3 px-6">
+                            <template x-if="booking.table_number">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200" x-text="'T' + booking.table_number"></span>
+                            </template>
+                            <template x-if="!booking.table_number">
+                                <span class="text-gray-400">-</span>
+                            </template>
+                        </td>
+                        <td class="py-3 px-6">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                                  :class="{
+                                      'bg-red-100 text-red-800': booking.status === 'cancelled',
+                                      'bg-yellow-100 text-yellow-800': booking.status === 'Pending',
+                                      'bg-primary-100 text-primary-800': booking.status === 'Confirmed',
+                                      'bg-blue-100 text-blue-800': booking.status === 'Arrived',
+                                      'bg-green-100 text-green-800': booking.status === 'Completed',
+                                      'bg-gray-100 text-gray-800': booking.status === 'No-show' || !['cancelled','Pending','Confirmed','Arrived','Completed'].includes(booking.status)
+                                  }" x-text="booking.status === 'cancelled' ? 'Cancelled' : booking.status"></span>
+                        </td>
+                        <td class="py-3 px-6 text-right">
+                            <form :action="'/admin/booking_action/' + booking.id" method="POST" class="inline-flex gap-2">
+                                <template x-if="booking.status === 'Pending'">
+                                    <div class="inline-flex gap-2">
+                                        <button type="submit" name="action" value="Confirmed" :title="booking.phone && !booking.phone.startsWith('walkin:') && !booking.is_messageable ? 'SMS Disabled - Session Expired' : ''" :class="booking.phone && !booking.phone.startsWith('walkin:') && !booking.is_messageable ? 'opacity-50' : ''" class="text-xs px-3 py-1.5 bg-white border border-primary-200 text-primary-600 rounded-lg hover:bg-primary-50 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1">Confirm</button>
+                                        <button type="submit" name="action" value="cancel" :class="booking.phone && !booking.phone.startsWith('walkin:') && !booking.is_messageable ? 'opacity-50' : ''" class="text-xs px-3 py-1.5 bg-white border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1" onclick="return confirm('Cancel this booking?');">Cancel</button>
+                                    </div>
+                                </template>
+                                <template x-if="booking.status === 'Confirmed'">
+                                    <div class="inline-flex gap-2">
+                                        <button type="submit" name="action" value="Arrived" class="text-xs px-3 py-1.5 bg-white border border-blue-200 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1">Arrived</button>
+                                        <button type="submit" name="action" value="cancel" :class="booking.phone && !booking.phone.startsWith('walkin:') && !booking.is_messageable ? 'opacity-50' : ''" class="text-xs px-3 py-1.5 bg-white border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1" onclick="return confirm('Cancel this booking?');">Cancel</button>
+                                    </div>
+                                </template>
+                                <template x-if="booking.status === 'Arrived'">
+                                    <button type="submit" name="action" value="Completed" class="text-xs px-3 py-1.5 bg-white border border-green-200 text-green-600 rounded-lg hover:bg-green-50 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1">Complete</button>
+                                </template>
+                                <template x-if="!['Pending', 'Confirmed', 'Arrived'].includes(booking.status)">
+                                    <span class="text-gray-400 text-xs">-</span>
+                                </template>
+                            </form>
+                        </td>
+                    </tr>
+                </template>
+            </tbody>
+        </table>
+        <div class="text-center py-12" x-show="recent_bookings.length === 0" style="display: none;">
+            <i class="bi bi-inbox text-4xl text-gray-300 mb-3 block"></i>
+            <p class="text-gray-500 font-medium border-none">No recent bookings found.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script id="dashboard-data" type="application/json">
+{
+    "metrics": {
+        "total_tables": {{ metrics.total_tables | tojson }},
+        "todays_bookings": {{ metrics.todays_bookings | tojson }},
+        "todays_guests": {{ metrics.todays_guests | tojson }},
+        "available_tables": {{ metrics.available_tables | tojson }},
+        "waitlist_count": {{ metrics.waitlist_count | tojson }},
+        "revenue_today": {{ metrics.get('revenue_today', 0) | tojson }}
+    },
+    "recent_bookings": {{ bookings | tojson }}
+}
+</script>
+<script>
+    function adminDashboard() {
+        const rawData = document.getElementById('dashboard-data').textContent;
+        const initialData = JSON.parse(rawData);
+
+        return {
+            metrics: initialData.metrics,
+            recent_bookings: initialData.recent_bookings,
+            
+            async fetchDashboardData() {
+                try {
+                    const response = await fetch('/admin/api/dashboard_data');
+                    if(response.ok) {
+                        const data = await response.json();
+                        this.metrics = data.metrics;
+                        this.recent_bookings = data.recent_bookings;
+                    }
+                } catch(err) {
+                    console.error('Polling failed:', err);
+                }
+            },
+            
+            startPolling() {
+                setInterval(() => {
+                    this.fetchDashboardData();
+                }, 15000);
+            }
+        }
+    }
+
+    // Live Clock
+    function updateClock() {
+        const now = new Date();
+        const options = { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+        document.getElementById('liveClock').textContent = now.toLocaleDateString('en-US', options);
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+</script>
+{% endblock %}

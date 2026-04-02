@@ -1,0 +1,362 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6 mt-2">
+    <h1 class="text-2xl font-bold text-gray-900 tracking-tight"></h1>
+</div>
+
+<!-- Filters + search bar -->
+<div class="flex flex-wrap gap-3 mb-4">
+    <input type="text" id="searchBox"
+           placeholder="Search name, phone, ID..."
+           class="flex-1 min-w-[200px] px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500">
+
+    <select id="statusFilter"
+            class="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white">
+        <option value="">All Status</option>
+        <option value="Pending">Pending</option>
+        <option value="Confirmed">Confirmed</option>
+        <option value="Arrived">Arrived</option>
+        <option value="Completed">Completed</option>
+        <option value="No-show">No-show</option>
+        <option value="cancelled">Cancelled</option>
+    </select>
+
+    <select id="dateFilter"
+            class="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white">
+        <option value="">All Dates</option>
+        <option value="today">Today</option>
+        <option value="upcoming">Upcoming</option>
+        <option value="past">Past</option>
+    </select>
+
+    <button onclick="clearFilters()"
+            class="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-600">
+        Clear
+    </button>
+
+    <span id="rowCount" class="self-center text-xs text-gray-400"></span>
+
+    <!-- Toggle select mode -->
+    <button id="selectModeBtn"
+            onclick="toggleSelectMode()"
+            class="ml-auto flex items-center gap-1.5 px-3 py-2 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-600">
+        <i class="bi bi-check2-square"></i> Select to Delete
+    </button>
+</div>
+
+<!-- Bulk action toolbar — only visible when ≥1 row is checked -->
+<div id="bulkToolbar"
+     class="hidden mb-4 items-center gap-3 px-4 py-3 bg-red-50 border border-red-200 rounded-xl shadow-sm">
+    <span id="bulkCount" class="text-sm font-bold text-red-700"></span>
+    <span class="text-red-300">|</span>
+    <button id="bulkDeleteBtn"
+            onclick="confirmBulkDelete()"
+            class="flex items-center gap-1.5 px-4 py-1.5 text-sm font-bold bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors shadow-sm">
+        <i class="bi bi-trash3-fill"></i> Delete Selected
+    </button>
+    <button onclick="clearSelection()"
+            class="px-3 py-1.5 text-sm font-medium text-red-600 hover:text-red-800 hover:bg-red-100 rounded-lg transition-colors">
+        Deselect All
+    </button>
+    <button onclick="toggleSelectMode()"
+            class="ml-auto px-3 py-1.5 text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+        <i class="bi bi-x-lg"></i> Cancel
+    </button>
+</div>
+
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+    <div class="p-0 overflow-x-auto min-h-[500px]">
+        {% if bookings %}
+        <table class="w-full text-left border-collapse whitespace-nowrap">
+            <thead>
+                <tr class="bg-gray-50 text-xs uppercase tracking-wider text-gray-500 font-semibold border-b border-gray-200">
+                    <!-- Select-all checkbox — hidden until select mode is on -->
+                    <th id="thSelectAll" class="py-3 px-4 w-10 hidden">
+                        <input type="checkbox" id="selectAll"
+                               class="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500 cursor-pointer"
+                               onchange="toggleSelectAll(this)">
+                    </th>
+                    <th class="py-3 px-4">ID</th>
+                    <th class="py-3 px-6">Customer</th>
+                    <th class="py-3 px-6">Phone</th>
+                    <th class="py-3 px-6">Date &amp; Time</th>
+                    <th class="py-3 px-6">Guests</th>
+                    <th class="py-3 px-6">Table</th>
+                    <th class="py-3 px-6">Status</th>
+                    <th class="py-3 px-6 text-right">Action</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% for booking in bookings %}
+                {# "done" = no action needed: Completed, No-show, Cancelled #}
+                {% set is_done = booking.status in ['Completed', 'No-show', 'cancelled'] %}
+                <tr class="booking-row hover:bg-gray-50/50 transition-colors text-sm"
+                    data-id="{{ booking.id }}"
+                    data-date="{{ booking.date }}"
+                    data-status="{{ booking.status }}"
+                    data-deletable="{{ 'true' if is_done else 'false' }}">
+
+                    <!-- Checkbox cell — only for done bookings, hidden until select mode -->
+                    <td class="checkbox-cell py-3 px-4 hidden">
+                        {% if is_done %}
+                        <input type="checkbox"
+                               class="row-checkbox h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500 cursor-pointer"
+                               value="{{ booking.id }}"
+                               onchange="onRowCheckboxChange()">
+                        {% endif %}
+                    </td>
+
+                    <td class="py-3 px-4 text-gray-500">#{{ booking.id }}</td>
+                    <td class="py-3 px-6 font-medium text-gray-900">
+                        {{ booking.name }}
+                        {% if booking.is_auto_allocated %}
+                        <span class="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 uppercase tracking-wide" title="Auto-Allocated from Waitlist">Waitlist</span>
+                        {% endif %}
+                    </td>
+                    <td class="py-3 px-6">
+                        <div class="text-gray-600">{{ booking.phone }}</div>
+                        {% if booking.phone and not booking.phone.startswith('walkin:') %}
+                            {% if booking.is_messageable %}
+                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700 mt-1 uppercase tracking-wide">Messageable</span>
+                            {% else %}
+                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-500 mt-1 uppercase tracking-wide">Session Expired</span>
+                            {% endif %}
+                        {% endif %}
+                    </td>
+                    <td class="py-3 px-6">
+                        <div class="text-gray-900">{{ booking.date }}</div>
+                        <div class="text-xs text-gray-500">{{ booking.slot_time }}</div>
+                    </td>
+                    <td class="py-3 px-6 text-gray-600">{{ booking.seats }}</td>
+                    <td class="py-3 px-6">
+                        {% if booking.table_number %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200">
+                            T{{ booking.table_number }}
+                        </span>
+                        {% else %}
+                        <span class="text-gray-400">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="py-3 px-6">
+                        {% if booking.status == 'cancelled' %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Cancelled</span>
+                        {% elif booking.status == 'Pending' %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Pending</span>
+                        {% elif booking.status == 'Confirmed' %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800">Confirmed</span>
+                        {% elif booking.status == 'Arrived' %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">Arrived</span>
+                        {% elif booking.status == 'Completed' %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Completed</span>
+                        {% elif booking.status == 'No-show' %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">No-show</span>
+                        {% else %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">{{ booking.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="py-3 px-6 text-right">
+                        <form action="{{ url_for('admin.booking_action', booking_id=booking.id) }}" method="POST" class="inline-flex gap-2">
+                            {% if booking.status == 'Pending' %}
+                            <button type="submit" name="action" value="Confirmed"
+                                    title="{% if booking.phone and not booking.phone.startswith('walkin:') and not booking.is_messageable %}SMS Disabled - Session Expired{% endif %}"
+                                    class="text-xs px-3 py-1.5 bg-white border border-primary-200 text-primary-600 rounded-lg hover:bg-primary-50 transition-colors shadow-sm {% if booking.phone and not booking.phone.startswith('walkin:') and not booking.is_messageable %}opacity-50{% endif %}">Confirm</button>
+                            <button type="submit" name="action" value="cancel"
+                                    class="text-xs px-3 py-1.5 bg-white border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors shadow-sm {% if booking.phone and not booking.phone.startswith('walkin:') and not booking.is_messageable %}opacity-50{% endif %}"
+                                    onclick="return confirm('Cancel this booking?');">Cancel</button>
+                            {% elif booking.status == 'Confirmed' %}
+                            <button type="submit" name="action" value="Arrived"
+                                    class="text-xs px-3 py-1.5 bg-white border border-blue-200 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors shadow-sm">Arrived</button>
+                            <button type="submit" name="action" value="No-show"
+                                    class="text-xs px-3 py-1.5 bg-white border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors shadow-sm">No-show</button>
+                            <button type="submit" name="action" value="cancel"
+                                    class="text-xs px-3 py-1.5 bg-white border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors shadow-sm {% if booking.phone and not booking.phone.startswith('walkin:') and not booking.is_messageable %}opacity-50{% endif %}"
+                                    onclick="return confirm('Cancel this booking?');">Cancel</button>
+                            {% elif booking.status == 'Arrived' %}
+                            <button type="submit" name="action" value="Completed"
+                                    class="text-xs px-3 py-1.5 bg-white border border-green-200 text-green-600 rounded-lg hover:bg-green-50 transition-colors shadow-sm">Complete</button>
+                            {% else %}
+                            <span class="text-gray-400 text-xs">-</span>
+                            {% endif %}
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="text-center py-20 flex flex-col items-center justify-center h-full">
+            <i class="bi bi-inbox text-5xl text-gray-300 mb-4 block"></i>
+            <p class="text-gray-500 font-medium text-lg">No bookings found in the system.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+const _today = new Date().toISOString().split('T')[0];
+let _selectMode = false;
+
+// ── Select-mode toggle ────────────────────────────────────────────────────────
+
+function toggleSelectMode() {
+  _selectMode = !_selectMode;
+
+  // Show/hide the header checkbox column
+  document.getElementById('thSelectAll').classList.toggle('hidden', !_selectMode);
+
+  // Show/hide every checkbox cell in each row
+  document.querySelectorAll('td.checkbox-cell').forEach(td => {
+    td.classList.toggle('hidden', !_selectMode);
+  });
+
+  // Update the toggle button label
+  const btn = document.getElementById('selectModeBtn');
+  if (_selectMode) {
+    btn.innerHTML = '<i class="bi bi-x-lg"></i> Cancel Selection';
+    btn.classList.add('bg-gray-100', 'text-gray-800', 'border-gray-400');
+  } else {
+    btn.innerHTML = '<i class="bi bi-check2-square"></i> Select to Delete';
+    btn.classList.remove('bg-gray-100', 'text-gray-800', 'border-gray-400');
+    clearSelection();   // uncheck everything when leaving select mode
+  }
+}
+
+// ── Filtering ────────────────────────────────────────────────────────────────
+
+function filterTable() {
+  const q = document.getElementById('searchBox').value.toLowerCase();
+  const s = document.getElementById('statusFilter').value;
+  const d = document.getElementById('dateFilter').value;
+  let visible = 0;
+
+  document.querySelectorAll('tbody tr.booking-row').forEach(row => {
+    const text   = row.textContent.toLowerCase();
+    const date   = row.dataset.date   || '';
+    const status = row.dataset.status || '';
+
+    const matchQ = !q || text.includes(q);
+    const matchS = !s || status === s;
+    const matchD = !d
+      || (d === 'today'    && date === _today)
+      || (d === 'upcoming' && date >  _today)
+      || (d === 'past'     && date <  _today);
+
+    const show = matchQ && matchS && matchD;
+    row.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+
+  document.getElementById('rowCount').textContent =
+    visible + ' booking' + (visible !== 1 ? 's' : '');
+
+  syncSelectAll();
+}
+
+function clearFilters() {
+  ['searchBox', 'statusFilter', 'dateFilter'].forEach(id =>
+    document.getElementById(id).value = '');
+  filterTable();
+}
+
+document.getElementById('searchBox').addEventListener('input', filterTable);
+document.getElementById('statusFilter').addEventListener('change', filterTable);
+document.getElementById('dateFilter').addEventListener('change', filterTable);
+filterTable();
+
+
+// ── Multi-select / Bulk Delete ───────────────────────────────────────────────
+
+function getVisibleCheckboxes() {
+  // Only rows that are: visible + deletable + have a checkbox
+  return Array.from(document.querySelectorAll('tbody tr.booking-row'))
+    .filter(r => r.style.display !== 'none' && r.dataset.deletable === 'true')
+    .map(r => r.querySelector('.row-checkbox'))
+    .filter(Boolean);
+}
+
+function getCheckedIds() {
+  return Array.from(document.querySelectorAll('.row-checkbox:checked'))
+    .map(cb => parseInt(cb.value));
+}
+
+function updateBulkToolbar() {
+  const ids     = getCheckedIds();
+  const toolbar = document.getElementById('bulkToolbar');
+  const count   = document.getElementById('bulkCount');
+  if (ids.length > 0) {
+    toolbar.classList.remove('hidden');
+    toolbar.classList.add('flex');
+    count.textContent = ids.length + ' booking' + (ids.length !== 1 ? 's' : '') + ' selected';
+  } else {
+    toolbar.classList.add('hidden');
+    toolbar.classList.remove('flex');
+  }
+}
+
+function syncSelectAll() {
+  const visibleCbs = getVisibleCheckboxes();
+  const el = document.getElementById('selectAll');
+  if (!el) return;
+  const allChecked = visibleCbs.length > 0 && visibleCbs.every(cb => cb.checked);
+  el.checked = allChecked;
+  el.indeterminate = !allChecked && visibleCbs.some(cb => cb.checked);
+}
+
+function toggleSelectAll(masterCb) {
+  getVisibleCheckboxes().forEach(cb => cb.checked = masterCb.checked);
+  updateBulkToolbar();
+}
+
+function onRowCheckboxChange() {
+  syncSelectAll();
+  updateBulkToolbar();
+}
+
+function clearSelection() {
+  document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = false);
+  const el = document.getElementById('selectAll');
+  if (el) { el.checked = false; el.indeterminate = false; }
+  updateBulkToolbar();
+}
+
+async function confirmBulkDelete() {
+  const ids = getCheckedIds();
+  if (ids.length === 0) return;
+
+  const ok = confirm(
+    `⚠️ Permanently delete ${ids.length} booking${ids.length !== 1 ? 's' : ''}?\n\nThis action cannot be undone.`
+  );
+  if (!ok) return;
+
+  const btn = document.getElementById('bulkDeleteBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Deleting…';
+
+  try {
+    const resp = await fetch('/admin/bookings/bulk_delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ ids }),
+    });
+    const data = await resp.json();
+
+    if (data.ok) {
+      ids.forEach(id => {
+        const row = document.querySelector(`tr.booking-row[data-id="${id}"]`);
+        if (row) row.remove();
+      });
+      clearSelection();
+      filterTable();
+    } else {
+      alert('Error: ' + (data.message || 'Delete failed.'));
+    }
+  } catch (err) {
+    alert('Network error: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-trash3-fill"></i> Delete Selected';
+  }
+}
+</script>
+{% endblock %}

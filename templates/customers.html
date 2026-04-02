@@ -1,0 +1,49 @@
+{% extends "ops_base.html" %}
+{% block page_title %}Customers{% endblock %}
+{% block content %}
+
+<div class="flex items-center justify-between mb-6">
+    <p class="text-sm text-gray-500">Customer history derived from booking records.</p>
+</div>
+
+<div class="cafe-card overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="border-b border-stone-200" style="background-color: #FAF7F0;">
+                    <th class="text-left px-5 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Name</th>
+                    <th class="text-left px-5 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Phone</th>
+                    <th class="text-left px-5 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Visits</th>
+                    <th class="text-left px-5 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Last Visit</th>
+                    <th class="text-left px-5 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Avg Party</th>
+                    <th class="text-left px-5 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in customers %}
+                <tr class="border-b border-stone-100 hover:bg-stone-50 transition-colors">
+                    <td class="px-5 py-3 font-medium text-gray-900">{{ c.name }}</td>
+                    <td class="px-5 py-3 text-gray-600 font-mono text-xs">{{ c.phone }}</td>
+                    <td class="px-5 py-3">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold"
+                              style="background-color: #FAF0D7; color: #9A6818;">
+                            {{ c.visit_count }}
+                        </span>
+                    </td>
+                    <td class="px-5 py-3 text-gray-600">{{ c.last_visit }}</td>
+                    <td class="px-5 py-3 text-gray-600">{{ c.avg_party_size }}</td>
+                    <td class="px-5 py-3 text-gray-400 italic text-xs">{{ c.notes or '—' }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="px-5 py-10 text-center text-gray-400">
+                        <i class="bi bi-people text-4xl block mb-2"></i>
+                        No customer records yet.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,403 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div x-data="liveTables()" x-init="startPolling()">
+    <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6 mt-2">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900 tracking-tight"></h1>
+            <div class="text-sm font-medium text-gray-500 mt-1 flex items-center gap-3">
+                <span class="flex items-center gap-1"><i class="bi bi-clock"></i> <span id="liveClock"></span></span>
+                <span class="text-gray-300">|</span>
+                <span class="flex items-center gap-1"><i class="bi bi-calendar-event"></i> {{ today_date }}</span>
+            </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="flex flex-wrap gap-2">
+            <span
+                class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs md:text-sm font-bold bg-green-50 text-green-700 border border-green-200 shadow-sm"
+                x-text="'Vacant: ' + countTables(['Vacant'])">Vacant: {{ stats.vacant }}</span>
+            <span
+                class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs md:text-sm font-bold bg-primary-50 text-primary-700 border border-primary-200 shadow-sm"
+                x-text="'Reserved: ' + countTables(['Reserved', 'Reserved (Impending)'])">Reserved: {{ stats.reserved
+                }}</span>
+            <span
+                class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs md:text-sm font-bold bg-red-50 text-red-700 border border-red-200 shadow-sm"
+                x-text="'Occupied: ' + countTables(['Occupied'])">Occupied: {{ stats.occupied }}</span>
+            <span
+                class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs md:text-sm font-bold bg-yellow-50 text-yellow-700 border border-yellow-200 shadow-sm"
+                x-text="'Cleaning: ' + countTables(['Needs Cleaning'])">Cleaning: {{ stats.cleaning }}</span>
+        </div>
+    </div>
+
+
+
+    <!-- Unified Table Grid (Alpine JS for Auto-refresh) -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col p-4 md:p-6 min-h-[500px]">
+        <div class="flex items-center justify-between mb-4 pb-4 border-b border-gray-100">
+            <div class="flex items-center gap-2">
+                <i class="bi bi-grid-fill text-gray-700"></i>
+                <h5 class="font-bold text-gray-900 m-0">Live Table Grid</h5>
+            </div>
+            <div class="text-xs font-bold flex items-center gap-2 text-gray-400">
+                <span x-show="isRefreshing" class="animate-pulse flex items-center gap-1"><i
+                        class="bi bi-arrow-repeat"></i> Syncing...</span>
+                <span x-show="!isRefreshing">Live</span>
+                <div class="h-2 w-2 rounded-full bg-green-500"></div>
+            </div>
+        </div>
+
+        <!-- Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <template x-for="table in tables" :key="table.table_number">
+                <div class="relative flex flex-col justify-between border rounded-xl p-4 shadow-sm transition-all min-h-[14rem]"
+                    :class="{
+                     'border-green-300 bg-white hover:border-green-400': table.status === 'Vacant',
+                     'border-red-300 bg-red-50 border-l-4 border-l-red-500': table.status === 'Occupied',
+                     'border-primary-300 bg-primary-50': table.status === 'Reserved' || table.status === 'Reserved (Impending)',
+                     'border-blue-300 bg-blue-50': table.status === 'Needs Cleaning'
+                 }">
+
+                    <!-- Table Header -->
+                    <div class="flex justify-between items-start mb-2">
+                        <h3 class="text-xl font-bold font-mono text-gray-800" x-text="'T' + table.table_number"></h3>
+                        <div class="flex items-center gap-1.5 flex-wrap justify-end">
+                            <span
+                                class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 border border-gray-200"
+                                x-text="table.capacity + ' seats'"></span>
+                            <span class="text-xs font-bold px-2 py-1 rounded tracking-wide uppercase" :class="{
+                                  'bg-green-100 text-green-800': table.status === 'Vacant',
+                                  'bg-red-100 text-red-800': table.status === 'Occupied',
+                                  'bg-primary-100 text-primary-800': table.status === 'Reserved' || table.status === 'Reserved (Impending)',
+                                  'bg-blue-100 text-blue-800': table.status === 'Needs Cleaning'
+                              }" x-text="table.status"></span>
+                        </div>
+                    </div>
+
+                    <!-- Middle Content (Booking Info or Empty state) -->
+                    <div class="mb-4 flex-1">
+                        <template x-if="table.booking">
+                            <div>
+                                <p class="text-sm font-bold text-gray-900 truncate"
+                                    x-text="table.booking.name + ' (' + table.booking.guests + ' Guests)'"></p>
+                                <template x-if="table.booking.guests > table.capacity">
+                                    <span
+                                        class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700 mt-1">⚠️
+                                        Exceeds table capacity</span>
+                                </template>
+                                <p class="text-xs font-mono mt-1 font-bold"
+                                    :class="table.booking.time_remaining.includes('Overdue') ? 'text-red-600' : 'text-gray-600'"
+                                    x-text="table.booking.time_remaining"></p>
+                                <template x-if="table.next_booking">
+                                    <div class="mt-3 border-t border-gray-200 pt-2">
+                                        <p class="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500">Up
+                                            Next</p>
+                                        <p class="mt-1 text-xs font-bold text-gray-900 truncate"
+                                            x-text="table.next_booking.name"></p>
+                                        <p class="text-[11px] text-gray-500"
+                                            x-text="table.next_booking.guests + ' guests - ' + table.next_booking.slot_time">
+                                        </p>
+                                        <span
+                                            class="mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold"
+                                            :class="{
+                                              'bg-red-100 text-red-700': table.next_booking.badge_tone === 'danger',
+                                              'bg-yellow-100 text-yellow-800': table.next_booking.badge_tone === 'warning',
+                                              'bg-gray-100 text-gray-700': table.next_booking.badge_tone === 'neutral'
+                                          }" x-text="table.next_booking.gap_label"></span>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                        <template x-if="!table.booking">
+                            <div class="flex items-center h-full text-gray-400">
+                                <span class="text-xs font-medium" x-text="table.capacity + ' Seats capacity'"></span>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Actions Footer -->
+                    <div class="flex gap-2 w-full mt-auto">
+                        <!-- Vacant actions -->
+                        <template x-if="table.status === 'Vacant'">
+                            <button @click="openWalkinModal(table)"
+                                class="w-full bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold py-2 rounded transition-colors shadow-sm text-center">
+                                Seat Walk-In
+                            </button>
+                        </template>
+
+                        <!-- Reserved Actions — 3-state logic based on time to arrival -->
+
+                        <!-- State A: Reserved + >45 min away → Walk-In Short Stay -->
+                        <template
+                            x-if="table.status === 'Reserved' && table.booking && table.booking.allow_walkin_short">
+                            <div class="flex flex-col gap-2 w-full">
+                                <div class="text-[10px] font-bold text-primary-700 bg-primary-50 border border-primary-200 rounded px-2 py-1.5 text-center truncate"
+                                    x-text="table.booking.time_remaining"></div>
+                                <button @click="openWalkinModal(table)"
+                                    class="w-full bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold py-2 rounded transition-colors shadow-sm">
+                                    🚶 Seat Walk-In (Short Stay)
+                                </button>
+                            </div>
+                        </template>
+
+                        <!-- State B: Reserved + 30–45 min away → Locked info panel -->
+                        <template
+                            x-if="table.status === 'Reserved' && table.booking && !table.booking.allow_walkin_short && table.booking.gap_minutes > 30">
+                            <div
+                                class="w-full rounded-lg border border-primary-200 bg-primary-50 px-3 py-2.5 text-center">
+                                <p class="text-xs font-bold text-primary-800" x-text="table.booking.time_remaining"></p>
+                                <p class="text-[10px] text-primary-500 mt-0.5">Preparing for arrival</p>
+                            </div>
+                        </template>
+
+                        <!-- State C: Reserved + ≤30 min away → Arrived + Walk-in (no-show override) -->
+                        <template
+                            x-if="table.status === 'Reserved' && table.booking && !table.booking.allow_walkin_short && table.booking.gap_minutes <= 30">
+                            <div class="flex flex-col gap-2 w-full">
+                                <form
+                                    @submit.prevent="submitAction('/staff/checkin/' + table.booking.id, new FormData($event.target))"
+                                    class="w-full m-0">
+                                    <button type="submit"
+                                        class="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 rounded transition-colors shadow-sm">
+                                        ✅ Arrived
+                                    </button>
+                                </form>
+                                <button @click="openWalkinModal(table)"
+                                    class="w-full bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold py-2 rounded transition-colors shadow-sm">
+                                    🚶 Walk-in (No-show)
+                                </button>
+                            </div>
+                        </template>
+
+                        <!-- Reserved (Impending) with no active booking — table is physically vacant -->
+                        <template x-if="table.status === 'Reserved (Impending)' && !table.booking">
+                            <button @click="openWalkinModal(table)"
+                                class="w-full bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold py-2 rounded transition-colors shadow-sm">
+                                Seat Walk-In
+                            </button>
+                        </template>
+
+                        <!-- Occupied Actions (with active booking) -->
+                        <template x-if="table.status === 'Occupied' && table.booking">
+                            <div class="flex gap-2 w-full">
+                                <!-- Messageability Logic -->
+                                <template
+                                    x-if="table.booking.is_messageable && table.booking.phone && !table.booking.phone.startsWith('walkin:')">
+                                    <!-- Dummy form for Notify -->
+                                    <button type="button"
+                                        class="flex-1 bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 text-xs font-bold py-2 rounded transition-colors text-center shadow-sm"
+                                        onclick="alert('Notification sent!');">
+                                        💬 Notify
+                                    </button>
+                                </template>
+
+                                <template
+                                    x-if="!table.booking.is_messageable && table.booking.phone && !table.booking.phone.startsWith('walkin:')">
+                                    <a :href="'tel:' + table.booking.phone.replace('whatsapp:', '')"
+                                        class="flex-1 bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200 text-xs font-bold py-2 rounded transition-colors text-center shadow-sm flex items-center justify-center gap-1">
+                                        📞 Call
+                                    </a>
+                                </template>
+
+                                <!-- Check Out / Complete -->
+                                <form
+                                    @submit.prevent="submitAction('/staff/action/' + table.booking.id, new FormData($event.target))"
+                                    class="flex-1 m-0">
+                                    <input type="hidden" name="action" value="Completed">
+                                    <button type="submit"
+                                        class="w-full bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold py-2 rounded transition-colors shadow-sm">
+                                        ✓ Checkout
+                                    </button>
+                                </form>
+                            </div>
+                        </template>
+
+                        <!-- Occupied Fallback (no booking record — stale occupied state) -->
+                        <template x-if="table.status === 'Occupied' && !table.booking">
+                            <form
+                                @submit.prevent="submitAction('/staff/force-release/' + table.table_number, new FormData($event.target))"
+                                class="w-full m-0">
+                                <button type="submit"
+                                    class="w-full bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold py-2 rounded transition-colors shadow-sm">
+                                    ✓ Checkout
+                                </button>
+                            </form>
+                        </template>
+
+                        <!-- Needs Cleaning Actions -->
+                        <template x-if="table.status === 'Needs Cleaning'">
+                            <div
+                                class="w-full rounded-lg border border-yellow-300 bg-yellow-50 p-3 text-center shadow-sm">
+                                <div class="text-2xl leading-none text-yellow-600">Cleaning</div>
+                                <p class="mt-2 text-xs font-medium text-yellow-700">Auto-releasing in 5 min...</p>
+                                <form
+                                    @submit.prevent="submitAction('/staff/force-release/' + table.table_number, new FormData($event.target))"
+                                    class="mt-3 m-0">
+                                    <button type="submit"
+                                        class="w-full bg-white hover:bg-yellow-100 text-yellow-800 border border-yellow-300 text-xs font-bold py-2 rounded transition-colors shadow-sm text-center">
+                                        Mark as Vacant Now
+                                    </button>
+                                </form>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- Walk-In Modal -->
+        <div x-show="isWalkinModalOpen" style="display: none;"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <div @click.away="closeWalkinModal()"
+                class="bg-white rounded-xl shadow-xl border border-gray-100 p-6 w-full max-w-md mx-4">
+                <div class="flex justify-between items-center mb-5">
+                    <h3 class="text-xl font-bold text-gray-900 flex items-center gap-2"><i
+                            class="bi bi-person-plus-fill text-primary-500"></i> Seat Walk-In</h3>
+                    <button type="button" @click="closeWalkinModal()"
+                        class="text-gray-400 hover:text-gray-600 transition-colors"><i class="bi bi-x-lg"></i></button>
+                </div>
+
+                <template x-if="selectedTableForWalkin">
+                    <form @submit.prevent="submitAction('/staff/action', new FormData($event.target))">
+                        <input type="hidden" name="table_id" :value="selectedTableForWalkin.id">
+
+                        <div
+                            class="mb-4 bg-gray-50 p-3 rounded-lg border border-gray-100 flex justify-between items-center">
+                            <div>
+                                <span class="block text-xs font-bold text-gray-500 uppercase tracking-wider">Selected
+                                    Table</span>
+                                <span class="font-bold text-gray-900 text-lg"
+                                    x-text="'T' + selectedTableForWalkin.table_number"></span>
+                            </div>
+                            <div class="text-right">
+                                <span
+                                    class="block text-xs font-bold text-gray-500 uppercase tracking-wider">Capacity</span>
+                                <span class="font-medium text-gray-700"
+                                    x-text="selectedTableForWalkin.capacity + ' Guests max'"></span>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="block text-sm font-bold text-gray-700 mb-2">Number of Guests</label>
+                            <input type="number" name="guests" x-model="walkinGuests" min="1"
+                                :max="selectedTableForWalkin.capacity"
+                                class="focus:ring-2 focus:ring-primary-500 block w-full sm:text-sm border-gray-300 rounded-lg py-2.5 px-3 border"
+                                required>
+                        </div>
+
+                        <div
+                            class="mb-6 rounded-lg border border-primary-100 bg-primary-50 px-3 py-2 text-xs font-medium text-primary-700">
+                            Seats the party immediately and marks the table occupied.
+                        </div>
+
+                        <div class="flex gap-3">
+                            <button type="button" @click="closeWalkinModal()"
+                                class="w-full py-2.5 px-4 rounded-lg text-sm font-bold text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 transition-colors">Cancel</button>
+                            <button type="submit"
+                                class="w-full py-2.5 px-4 rounded-lg text-sm font-bold text-white bg-primary-600 hover:bg-primary-700 transition-colors shadow-sm">
+                                Seat Now
+                            </button>
+                        </div>
+                    </form>
+                </template>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function liveTables() {
+        return {
+            tables: [],
+            isRefreshing: false,
+            isWalkinModalOpen: false,
+            selectedTableForWalkin: null,
+            walkinGuests: 1,
+
+            countTables(statuses) {
+                return this.tables.filter(table => statuses.includes(table.status)).length;
+            },
+
+            openWalkinModal(table) {
+                this.selectedTableForWalkin = table;
+                this.walkinGuests = 1;
+                this.isWalkinModalOpen = true;
+            },
+
+            closeWalkinModal() {
+                this.isWalkinModalOpen = false;
+                setTimeout(() => {
+                    this.selectedTableForWalkin = null;
+                }, 200);
+            },
+
+            async submitAction(url, formData) {
+                this.isRefreshing = true;
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'Accept': 'application/json'
+                        }
+                    });
+                    const rawText = await response.text();
+                    let payload = null;
+                    try {
+                        payload = rawText ? JSON.parse(rawText) : null;
+                    } catch (error) {
+                        payload = null;
+                    }
+                    if (!response.ok || (payload && payload.ok === false)) {
+                        this.isRefreshing = false;
+                        const fallbackMessage = rawText
+                            ? rawText.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 240)
+                            : 'Action failed.';
+                        alert(payload && payload.message ? payload.message : fallbackMessage);
+                        return;
+                    }
+                    if (this.isWalkinModalOpen) {
+                        this.closeWalkinModal();
+                    }
+                    await this.fetchLiveTables();
+                } catch (error) {
+                    console.error("Error submitting action:", error);
+                    this.isRefreshing = false;
+                }
+            },
+
+            async fetchLiveTables() {
+                this.isRefreshing = true;
+                try {
+                    const response = await fetch('/staff/api/live_tables');
+                    const data = await response.json();
+                    this.tables = data.tables;
+                } catch (error) {
+                    console.error("Error fetching live tables:", error);
+                } finally {
+                    setTimeout(() => this.isRefreshing = false, 500);
+                }
+            },
+
+            startPolling() {
+                this.fetchLiveTables();
+                setInterval(() => {
+                    this.fetchLiveTables();
+                }, 15000); // Poll every 15 seconds
+            }
+        }
+    }
+
+    function updateClock() {
+        const now = new Date();
+        const liveClock = document.getElementById('liveClock');
+        if (liveClock) {
+            liveClock.innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+</script>
+{% endblock %}

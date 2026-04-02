@@ -1,0 +1,138 @@
+{% extends "ops_base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="h4 mb-0">Table Configuration</h2>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">Add Table</h5>
+                <form method="post">
+                    <input type="hidden" name="action" value="add">
+                    <div class="mb-2">
+                        <label class="form-label">Table Number</label>
+                        <input type="number" class="form-control" name="table_number" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Table Name</label>
+                        <input type="text" class="form-control" name="table_name">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Capacity</label>
+                        <input type="number" class="form-control" name="capacity" min="1" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Location</label>
+                        <input type="text" class="form-control" name="location" required>
+                    </div>
+                    <button class="btn btn-primary btn-touch w-100" type="submit">Add Table</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mt-3">
+            <div class="card-body">
+                <h5 class="card-title">Merge Tables</h5>
+                <form method="post">
+                    <input type="hidden" name="action" value="merge">
+                    <div class="mb-2">
+                        <label class="form-label">Table A</label>
+                        <select class="form-select" name="merge_table_a" required>
+                            <option value="">Select</option>
+                            {% for t in tables %}
+                                <option value="{{ t.table_number }}">{{ t.table_number }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Table B</label>
+                        <select class="form-select" name="merge_table_b" required>
+                            <option value="">Select</option>
+                            {% for t in tables %}
+                                <option value="{{ t.table_number }}">{{ t.table_number }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button class="btn btn-warning btn-touch w-100" type="submit">Merge</button>
+                </form>
+                <div class="small text-muted mt-2">
+                    Merged tables create a new combined table and block the originals.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Table</th>
+                            <th>Name</th>
+                            <th>Capacity</th>
+                            <th>Location</th>
+                            <th>Status</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for t in tables %}
+                        <tr>
+                            <td>{{ t.table_number }}</td>
+                            <td>{{ t.table_name or ("Table " ~ t.table_number) }}</td>
+                            <td>{{ t.capacity }}</td>
+                            <td>{{ t.location }}</td>
+                            <td>{{ t.status }}</td>
+                            <td class="text-end">
+                                <form method="post" class="d-inline">
+                                    <input type="hidden" name="action" value="block">
+                                    <input type="hidden" name="table_number" value="{{ t.table_number }}">
+                                    <button class="btn btn-outline-dark btn-sm btn-touch">Block</button>
+                                </form>
+                                <form method="post" class="d-inline">
+                                    <input type="hidden" name="action" value="unblock">
+                                    <input type="hidden" name="table_number" value="{{ t.table_number }}">
+                                    <button class="btn btn-outline-primary btn-sm btn-touch">Unblock</button>
+                                </form>
+                                <button class="btn btn-outline-secondary btn-sm btn-touch" data-bs-toggle="collapse" data-bs-target="#edit-{{ t.table_number }}">Edit</button>
+                                <form method="post" class="d-inline">
+                                    <input type="hidden" name="action" value="delete">
+                                    <input type="hidden" name="table_number" value="{{ t.table_number }}">
+                                    <button class="btn btn-outline-danger btn-sm btn-touch">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                        <tr class="collapse" id="edit-{{ t.table_number }}">
+                            <td colspan="6">
+                                <form method="post" class="row g-2 align-items-end">
+                                    <input type="hidden" name="action" value="edit">
+                                    <input type="hidden" name="table_number" value="{{ t.table_number }}">
+                                    <div class="col-md-3">
+                                        <label class="form-label">Name</label>
+                                        <input type="text" class="form-control" name="table_name" value="{{ t.table_name or ("Table " ~ t.table_number) }}">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label">Capacity</label>
+                                        <input type="number" class="form-control" name="capacity" value="{{ t.capacity }}">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Location</label>
+                                        <input type="text" class="form-control" name="location" value="{{ t.location }}">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <button class="btn btn-primary btn-touch w-100" type="submit">Save</button>
+                                    </div>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

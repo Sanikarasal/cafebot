@@ -1,0 +1,68 @@
+{% extends "ops_base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="h4 mb-0">Waitlist</h2>
+    <span class="text-muted small">Date: {{ today_date }}</span>
+</div>
+
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Name</th>
+                    <th>Guests</th>
+                    <th>Phone</th>
+                    <th>Slot</th>
+                    <th>Created</th>
+                    <th class="text-end">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for w in waitlist %}
+                <tr>
+                    <td>{{ w.name }}</td>
+                    <td>{{ w.guests }}</td>
+                    <td>{{ w.phone }}</td>
+                    <td>{{ w.slot_time }}</td>
+                    <td>{{ w.created_at }}</td>
+                    <td class="text-end">
+                        <button class="btn btn-success btn-sm btn-touch action-assign" data-waitlist="{{ w.id }}">Assign Table</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function postJson(url, data) {
+    const res = await fetch(url, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(data)
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok || payload.ok === false) {
+        throw new Error(payload.error || "Action failed");
+    }
+    return payload;
+}
+
+document.querySelectorAll(".action-assign").forEach(btn => {
+    btn.addEventListener("click", async () => {
+        const tableNumber = prompt("Assign to table number:");
+        if (!tableNumber) return;
+        try {
+            await postJson("/api/waitlist/assign", {waitlist_id: btn.dataset.waitlist, table_number: tableNumber});
+            location.reload();
+        } catch (err) {
+            alert(err.message);
+        }
+    });
+});
+</script>
+{% endblock %}

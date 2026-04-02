@@ -1,0 +1,160 @@
+{% extends "ops_base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="h4 mb-0">Reservations</h2>
+    <span class="text-muted small">Today: {{ today_date }}</span>
+</div>
+
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>ID</th>
+                    <th>Customer</th>
+                    <th>Phone</th>
+                    <th>Date</th>
+                    <th>Time</th>
+                    <th>Guests</th>
+                    <th>Table</th>
+                    <th>Status</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in bookings %}
+                <tr id="booking-{{ b.id }}">
+                    <td>#{{ b.id }}</td>
+                    <td>{{ b.name }}</td>
+                    <td>{{ b.phone }}</td>
+                    <td>{{ b.date }}</td>
+                    <td>{{ b.slot_time }}</td>
+                    <td>{{ b.seats_display }}</td>
+                    <td>{{ b.table_number or "TBD" }}</td>
+                    <td><span class="badge badge-soft">{{ b.status }}</span></td>
+                    <td class="text-end">
+                        <button class="btn btn-success btn-sm btn-touch action-seat" data-booking="{{ b.id }}">Seat</button>
+                        <button class="btn btn-outline-secondary btn-sm btn-touch action-edit"
+                                data-booking="{{ b.id }}"
+                                data-date="{{ b.date }}"
+                                data-slot="{{ b.slot_time }}"
+                                data-seats="{{ b.seats_display }}"
+                                data-table="{{ b.table_number or '' }}">
+                            Edit
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm btn-touch action-cancel" data-booking="{{ b.id }}">Cancel</button>
+                        <button class="btn btn-outline-warning btn-sm btn-touch action-noshow" data-booking="{{ b.id }}">No-show</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="editBookingModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Reservation</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editBookingForm">
+                    <input type="hidden" name="booking_id" id="editBookingId">
+                    <div class="mb-2">
+                        <label class="form-label">Date</label>
+                        <input type="date" class="form-control" name="date" id="editBookingDate" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Time</label>
+                        <input type="text" class="form-control" name="slot_time" id="editBookingSlot" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Guests</label>
+                        <input type="number" class="form-control" name="seats" id="editBookingSeats" min="1" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Table Number</label>
+                        <input type="number" class="form-control" name="table_number" id="editBookingTable" min="1">
+                    </div>
+                    <button class="btn btn-primary btn-touch w-100" type="submit">Save Changes</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function postJson(url, data) {
+    const res = await fetch(url, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(data)
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok || payload.ok === false) {
+        throw new Error(payload.error || "Action failed");
+    }
+    return payload;
+}
+
+document.querySelectorAll(".action-seat").forEach(btn => {
+    btn.addEventListener("click", async () => {
+        try {
+            await postJson("/api/seat_guest", {booking_id: btn.dataset.booking});
+            location.reload();
+        } catch (err) {
+            alert(err.message);
+        }
+    });
+});
+
+document.querySelectorAll(".action-cancel").forEach(btn => {
+    btn.addEventListener("click", async () => {
+        try {
+            await postJson("/api/booking/status", {booking_id: btn.dataset.booking, status: "cancelled"});
+            location.reload();
+        } catch (err) {
+            alert(err.message);
+        }
+    });
+});
+
+document.querySelectorAll(".action-noshow").forEach(btn => {
+    btn.addEventListener("click", async () => {
+        try {
+            await postJson("/api/booking/status", {booking_id: btn.dataset.booking, status: "No-show"});
+            location.reload();
+        } catch (err) {
+            alert(err.message);
+        }
+    });
+});
+
+document.querySelectorAll(".action-edit").forEach(btn => {
+    btn.addEventListener("click", () => {
+        document.getElementById("editBookingId").value = btn.dataset.booking;
+        document.getElementById("editBookingDate").value = btn.dataset.date;
+        document.getElementById("editBookingSlot").value = btn.dataset.slot;
+        document.getElementById("editBookingSeats").value = btn.dataset.seats;
+        document.getElementById("editBookingTable").value = btn.dataset.table;
+        const modal = new bootstrap.Modal(document.getElementById("editBookingModal"));
+        modal.show();
+    });
+});
+
+document.getElementById("editBookingForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(e.target).entries());
+    try {
+        await postJson("/api/booking/update", data);
+        location.reload();
+    } catch (err) {
+        alert(err.message);
+    }
+});
+</script>
+{% endblock %}
