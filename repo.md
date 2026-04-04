@@ -108,3 +108,23 @@ git push -u origin main
 ```
 
 Your codebase is now successfully version-controlled and backed up safely!
+
+---
+
+## Troubleshooting
+
+### Stuck in the text editor during a commit?
+If you run `git commit` without the `-m` flag (or run commands like `git commit --amend`), Git opens a text editor inside your terminal (usually **Vim**) prompting you to enter a commit message. You'll see lines starting with `#` listing your files.
+
+**To save the commit and exit (in Vim):**
+1. Your commit message is already typed at the top (`Initial commit: Add base CafeBot project files`).
+2. Press the **`Esc`** key on your keyboard.
+3. Type **`:wq`** (colon, w, q — this stands for "write" and "quit"). Look at the bottom left-hand corner of your terminal to see it.
+4. Press **`Enter`**.
+
+**To abort the commit entirely:**
+1. Press **`Esc`**.
+2. Type **`:q!`** (colon, q, exclamation point).
+3. Press **`Enter`**.
+
+If your terminal uses **Nano** instead of Vim, you can exit by pressing **`Ctrl + X`**, typing **`Y`** to save, and then pressing **`Enter`**.

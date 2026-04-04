@@ -14,7 +14,7 @@ load_dotenv()
 app = Flask(__name__)
 
 # Secret key signs the session cookie – change this in production
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'super-secret-cafebot-key-2024!')
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'change-this-in-production!')
 
 # Larger cookie limit so multi-step booking flow fits in session
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
@@ -33,7 +33,7 @@ def index():
     return redirect(url_for('auth.login'))
 
 if __name__ == '__main__':
-    print("[*] Starting CafeBot Lite Server...", flush=True)
+    print("[*] Starting Server...", flush=True)
     print("    Running on http://127.0.0.1:5000", flush=True)
     print("    Webhook URL: http://127.0.0.1:5000/webhook", flush=True)
     print("    Login Panel: http://127.0.0.1:5000/login", flush=True)
@@ -82,7 +82,7 @@ if __name__ == '__main__':
         print(f"    [!] Scheduler error: {e}", flush=True)
 
     try:
-        app.run(debug=True, port=5000, use_reloader=False)
+        app.run(debug=False, port=5000, use_reloader=False)
     except OSError as e:
         print(f"\n[X] Could not start server: {e}", flush=True)
         print("    Port 5000 may already be in use.", flush=True)
