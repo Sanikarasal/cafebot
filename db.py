@@ -410,6 +410,124 @@ def create_user(username: str, password: str):
         conn.close()
 
 
+def get_all_users():
+    """Return all user rows (for staff management)."""
+    conn = get_db_connection()
+    rows = conn.execute("SELECT * FROM users ORDER BY role, username").fetchall()
+    conn.close()
+    return rows
+
+
+def set_reset_otp(username: str, otp: str, expiry_iso: str) -> bool:
+    """Store a 6-digit OTP and its expiry timestamp for a user."""
+    conn = get_db_connection()
+    try:
+        conn.execute(
+            "UPDATE users SET reset_otp = ?, reset_otp_expiry = ? WHERE username = ?",
+            (otp, expiry_iso, username),
+        )
+        conn.commit()
+        return True
+    except Exception as exc:
+        print(f"[OTP] set_reset_otp error: {exc}")
+        return False
+    finally:
+        conn.close()
+
+
+def verify_and_clear_otp(username: str, otp: str) -> tuple[bool, str]:
+    """
+    Check that `otp` matches the stored OTP for `username` and has not expired.
+    Clears the OTP from the DB on success.
+    Returns (True, "") on success, (False, reason) on failure.
+    """
+    from datetime import datetime, timezone
+
+    conn = get_db_connection()
+    try:
+        row = conn.execute(
+            "SELECT reset_otp, reset_otp_expiry FROM users WHERE username = ?",
+            (username,),
+        ).fetchone()
+
+        if not row:
+            return False, "User not found."
+
+        stored_otp = row.get("reset_otp") or ""
+        expiry_str = row.get("reset_otp_expiry") or ""
+
+        if not stored_otp:
+            return False, "No OTP was requested for this account."
+
+        if stored_otp != otp.strip():
+            return False, "Incorrect OTP. Please try again."
+
+        if expiry_str:
+            try:
+                expiry = datetime.fromisoformat(expiry_str)
+                now = datetime.now(timezone.utc)
+                if expiry.tzinfo is None:
+                    expiry = expiry.replace(tzinfo=timezone.utc)
+                if now > expiry:
+                    # Clear expired OTP
+                    conn.execute(
+                        "UPDATE users SET reset_otp = NULL, reset_otp_expiry = NULL WHERE username = ?",
+                        (username,),
+                    )
+                    conn.commit()
+                    return False, "OTP has expired. Please request a new one."
+            except Exception:
+                pass  # If we can't parse expiry, allow it through
+
+        # OTP is valid — clear it
+        conn.execute(
+            "UPDATE users SET reset_otp = NULL, reset_otp_expiry = NULL WHERE username = ?",
+            (username,),
+        )
+        conn.commit()
+        return True, ""
+    except Exception as exc:
+        return False, str(exc)
+    finally:
+        conn.close()
+
+
+def update_user_password(username: str, new_password: str) -> bool:
+    """Update a user's password hash."""
+    from werkzeug.security import generate_password_hash
+
+    conn = get_db_connection()
+    try:
+        conn.execute(
+            "UPDATE users SET password_hash = ? WHERE username = ?",
+            (generate_password_hash(new_password), username),
+        )
+        conn.commit()
+        return True
+    except Exception as exc:
+        print(f"[Auth] update_user_password error: {exc}")
+        return False
+    finally:
+        conn.close()
+
+
+def update_user_phone(username: str, phone: str) -> bool:
+    """Update the recovery phone number for a user."""
+    conn = get_db_connection()
+    try:
+        conn.execute(
+            "UPDATE users SET phone = ? WHERE username = ?",
+            (phone.strip(), username),
+        )
+        conn.commit()
+        return True
+    except Exception as exc:
+        print(f"[Auth] update_user_phone error: {exc}")
+        return False
+    finally:
+        conn.close()
+
+
 #
 # Slots
 #

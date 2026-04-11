@@ -498,6 +498,18 @@ def admin_settings():
                 finally:
                     conn.close()
 
+        elif action == 'update_phone':
+            phone = request.form.get('recovery_phone', '').strip()
+            # Basic validation: must start with + and have digits
+            if phone and (not phone.startswith('+') or not phone[1:].replace(' ', '').isdigit()):
+                flash('Invalid phone number. Use international format, e.g. +91XXXXXXXXXX', 'danger')
+            else:
+                db.update_user_phone(username, phone)
+                if phone:
+                    flash('✅ Recovery phone number saved.', 'success')
+                else:
+                    flash('Recovery phone number cleared.', 'info')
+
         return redirect(url_for('admin.admin_settings'))
 
     return render_template('admin_settings.html', user=user)

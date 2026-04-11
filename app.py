@@ -87,6 +87,12 @@ def _start_scheduler():
 _SCHEDULER_STARTED_FLAG = "_CAFEBOT_SCHEDULER_STARTED"
 if not os.environ.get(_SCHEDULER_STARTED_FLAG):
     os.environ[_SCHEDULER_STARTED_FLAG] = "1"
+    # Run DB migrations
+    try:
+        import migrate_v11_user_phone_otp as _mig11
+        _mig11.run()
+    except Exception as _e:
+        print(f"[Startup] Migration v11 error: {_e}", flush=True)
     # Auto-generate slots for the next 7 days on startup
     try:
         import db as _db
