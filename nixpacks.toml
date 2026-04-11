@@ -2,4 +2,4 @@
 cmds = ['pip install -r requirements.txt']
 
 [start]
-cmd = 'gunicorn app:app --workers 2 --bind 0.0.0.0:\ --timeout 120'
+cmd = 'gunicorn app:app --workers 1 --bind 0.0.0.0:$PORT --timeout 120'
