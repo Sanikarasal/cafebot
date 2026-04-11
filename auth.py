@@ -97,18 +97,10 @@ def _generate_otp(length: int = 6) -> str:
     return ''.join(random.choices(string.digits, k=length))
 
 
-def _send_otp_whatsapp(phone: str, otp: str, username: str) -> tuple[bool, str]:
-    """Send the OTP via WhatsApp using Twilio."""
-    from notifier import send_whatsapp_message
-    message = (
-        f"🔐 CoziCafe Password Reset\n\n"
-        f"Hello {username},\n"
-        f"Your one-time password (OTP) for account recovery is:\n\n"
-        f"*{otp}*\n\n"
-        f"⏰ This OTP is valid for {OTP_EXPIRY_MINUTES} minutes.\n"
-        f"If you did not request this, please ignore this message."
-    )
-    return send_whatsapp_message(phone, message)
+def _send_otp_email(email: str, otp: str, username: str) -> tuple[bool, str]:
+    """Send the OTP via email."""
+    from email_sender import send_otp_email
+    return send_otp_email(email, otp, username, OTP_EXPIRY_MINUTES)
 
 
 @auth_bp.route('/forgot-password', methods=['GET', 'POST'])
@@ -179,18 +171,18 @@ def forgot_password():
 
         # Generic message — don't reveal whether username exists
         _generic_msg = (
-            'If this account exists and has a recovery phone set, '
-            f'a WhatsApp OTP has been sent. It expires in {OTP_EXPIRY_MINUTES} minutes.'
+            'If this account exists and has a recovery email set, '
+            f'an OTP has been sent to that address. It expires in {OTP_EXPIRY_MINUTES} minutes.'
         )
 
         if not user:
             flash(_generic_msg, 'info')
             return render_template('forgot_password.html', stage=1)
 
-        phone = user.get('phone', '') or ''
-        if not phone:
+        email = user.get('email', '') or ''
+        if not email:
             flash(
-                '⚠️ No recovery phone number is set for this account. '
+                '⚠️ No recovery email is set for this account. '
                 'Please contact your system administrator to set one in Admin Settings.',
                 'warning',
             )
@@ -200,12 +192,11 @@ def forgot_password():
         expiry   = datetime.now(timezone.utc) + timedelta(minutes=OTP_EXPIRY_MINUTES)
         db.set_reset_otp(username, otp_code, expiry.isoformat())
 
-        ok, msg = _send_otp_whatsapp(phone, otp_code, username)
+        ok, msg = _send_otp_email(email, otp_code, username)
         if not ok:
-            print(f"[ForgotPassword] Twilio error for {username}: {msg}")
+            print(f"[ForgotPassword] Email error for {username}: {msg}")
             flash(
-                '⚠️ Could not send WhatsApp OTP. '
-                'Check that Twilio credentials are configured correctly.',
+                f'⚠️ Could not send OTP email: {msg}',
                 'danger',
             )
             return render_template('forgot_password.html', stage=1)

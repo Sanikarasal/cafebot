@@ -93,6 +93,11 @@ if not os.environ.get(_SCHEDULER_STARTED_FLAG):
         _mig11.run()
     except Exception as _e:
         print(f"[Startup] Migration v11 error: {_e}", flush=True)
+    try:
+        import migrate_v12_user_email as _mig12
+        _mig12.run()
+    except Exception as _e:
+        print(f"[Startup] Migration v12 error: {_e}", flush=True)
     # Auto-generate slots for the next 7 days on startup
     try:
         import db as _db

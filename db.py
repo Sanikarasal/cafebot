@@ -528,6 +528,23 @@ def update_user_phone(username: str, phone: str) -> bool:
         conn.close()
 
 
+def update_user_email(username: str, email: str) -> bool:
+    """Update the recovery email address for a user."""
+    conn = get_db_connection()
+    try:
+        conn.execute(
+            "UPDATE users SET email = ? WHERE username = ?",
+            (email.strip().lower(), username),
+        )
+        conn.commit()
+        return True
+    except Exception as exc:
+        print(f"[Auth] update_user_email error: {exc}")
+        return False
+    finally:
+        conn.close()
+
+
 #
 # Slots
 #
