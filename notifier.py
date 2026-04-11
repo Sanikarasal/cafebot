@@ -21,16 +21,27 @@ def get_twilio_client():
 def send_whatsapp_message(to_phone: str, body: str) -> tuple[bool, str]:
     """
     Send a plain-text WhatsApp message via Twilio Sandbox.
-    `to_phone` should be in the format 'whatsapp:+91XXXXXXXXXX'.
+    `to_phone` can be in the format '+91XXXXXXXXXX' or 'whatsapp:+91XXXXXXXXXX'.
     Returns (True, message_or_sid) on success, (False, error_reason) on failure.
     """
     client = get_twilio_client()
     if not client:
         return False, "Twilio client not configured. Missing credentials."
 
-    if "walkin:staff" in to_phone or not to_phone.startswith('whatsapp:'):
+    # Skip pseudo-numbers (walk-in, staff, etc.)
+    if to_phone and ("walkin:" in to_phone.lower() or "staff:" in to_phone.lower()):
         print(f"⏩ Skipped Twilio send for pseudo-number: {to_phone}")
         return True, "Skipped pseudo-number"
+
+    # Ensure phone has 'whatsapp:' prefix
+    formatted_phone = to_phone
+    if to_phone and not to_phone.startswith('whatsapp:'):
+        # Handle raw phone numbers (e.g., '+91XXXXXXXXXX')
+        if to_phone.startswith('+') or to_phone.isdigit():
+            formatted_phone = f'whatsapp:{to_phone}'
+        else:
+            print(f"⚠️  Invalid phone format: {to_phone}")
+            return False, f"Invalid phone format: {to_phone}"
 
     from_number = os.getenv("TWILIO_WHATSAPP_NUMBER", "whatsapp:+14155238886")
 
@@ -38,10 +49,10 @@ def send_whatsapp_message(to_phone: str, body: str) -> tuple[bool, str]:
         message = client.messages.create(
             body=body,
             from_=from_number,
-            to=to_phone,
+            to=formatted_phone,
         )
-        print(f"📤 Sent WhatsApp to {to_phone} | SID: {message.sid}")
+        print(f"📤 Sent WhatsApp to {formatted_phone} | SID: {message.sid}")
         return True, f"Sent successfully! (SID: {message.sid})"
     except Exception as e:
-        print(f"❌ Failed to send WhatsApp to {to_phone}: {e}")
+        print(f"❌ Failed to send WhatsApp to {formatted_phone}: {e}")
         return False, str(e)

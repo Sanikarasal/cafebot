@@ -249,6 +249,15 @@ def update_slot_schedule():
         if not time_pattern.match(t):
             flash(f'Invalid time format: "{t}". Use e.g. "10:00 AM - 11:00 AM".', 'danger')
             return redirect(url_for('admin.manage_slots'))
+        
+        # FIX 5: Validate hour range in 12-hour format (1-12)
+        parts = re.match(r'^(\d{1,2}):\d{2}\s?[AP]M', t, re.IGNORECASE)
+        if parts:
+            hour = int(parts.group(1))
+            if hour < 1 or hour > 12:
+                flash(f'Invalid hour in "{t}". Use 1-12 for 12-hour format.', 'danger')
+                return redirect(url_for('admin.manage_slots'))
+        
         if t not in cleaned:
             cleaned.append(t)
 

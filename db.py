@@ -317,7 +317,9 @@ def get_conversation(phone):
             parsed = json.loads(raw_json)
             if isinstance(parsed, dict):
                 data = parsed
-        except Exception:
+        except Exception as e:
+            # FIX 6: Log silent exception
+            print(f"[ERROR] db.get_conversation: json.loads failed: {e}", flush=True)
             data = {}
     return {
         "phone": row["phone"],
@@ -476,7 +478,9 @@ def verify_and_clear_otp(username: str, otp: str) -> tuple[bool, str]:
                     )
                     conn.commit()
                     return False, "OTP has expired. Please request a new one."
-            except Exception:
+            except Exception as e:
+                # FIX 6: Log silent exception
+                print(f"[ERROR] db.verify_and_clear_otp: datetime parsing failed: {e}", flush=True)
                 pass  # If we can't parse expiry, allow it through
 
         # OTP is valid — clear it
@@ -1368,6 +1372,15 @@ def _auto_allocate_waitlist(date: str, slot_time: str):
                 if not current_entry or current_entry["status"] != 'pending':
                     conn.rollback()
                     continue
+                
+                # FIX 2: Skip auto-allocation if user has pending payment booking
+                existing_pending = cursor.execute(
+                    "SELECT id FROM bookings WHERE phone = ? AND status = 'Pending'",
+                    (entry["phone"],)
+                ).fetchone()
+                if existing_pending:
+                    conn.rollback()
+                    continue
                     
                 statuses, placeholders = _active_status_params()
                 all_date_bookings = cursor.execute(
@@ -1465,19 +1478,20 @@ def _auto_allocate_waitlist(date: str, slot_time: str):
             conn.close()
 
 
-def cancel_user_booking(phone):
-    """Backward-compatible helper that cancels the latest booking for this phone."""
-    conn = get_db_connection()
-    latest = conn.execute(
-        "SELECT id FROM bookings WHERE phone = ? ORDER BY id DESC LIMIT 1",
-        (phone,),
-    ).fetchone()
-    conn.close()
-
-    if not latest:
-        return False, "No active bookings found to cancel."
-
-    return cancel_booking_by_id(phone, latest["id"])
+# DEAD CODE [audit] - wrapper function never called; use cancel_booking_by_id() directly
+# def cancel_user_booking(phone):
+#     """Backward-compatible helper that cancels the latest booking for this phone."""
+#     conn = get_db_connection()
+#     latest = conn.execute(
+#         "SELECT id FROM bookings WHERE phone = ? ORDER BY id DESC LIMIT 1",
+#         (phone,),
+#     ).fetchone()
+#     conn.close()
+# 
+#     if not latest:
+#         return False, "No active bookings found to cancel."
+# 
+#     return cancel_booking_by_id(phone, latest["id"])
 
 
 

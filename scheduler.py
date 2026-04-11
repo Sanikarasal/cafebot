@@ -28,7 +28,9 @@ def check_and_send_reminders():
     Scan active bookings and send a reminder if the booking starts within 10 minutes.
     Only sends once per booking (tracks via `reminder_sent` flag).
     """
+    from utils import get_cafe_date
     now = get_cafe_time()  # timezone-aware (CAFE_TIMEZONE)
+    today_str = str(get_cafe_date())
     reminder_window = now + timedelta(minutes=10)
 
     conn = sqlite3.connect(DATABASE)
@@ -39,56 +41,76 @@ def check_and_send_reminders():
         statuses = get_active_booking_statuses()
         placeholders = ",".join("?" * len(statuses))
         has_twilio_last_response = _has_column(conn, "bookings", "twilio_last_response")
+        
+        # Only check today's bookings to avoid timezone issues with stored dates
         bookings = cursor.execute(
             f"""
             SELECT * FROM bookings
-            WHERE status IN ({placeholders}) AND reminder_sent = 0
+            WHERE date = ? AND status IN ({placeholders}) AND reminder_sent = 0
             """,
-            statuses,
+            (today_str, *statuses),
         ).fetchall()
 
+        if not bookings:
+            # print(f"[Reminders] No pending reminders for {today_str}")  # DEAD CODE [audit] - removed debug print
+            return
+
+        print(f"[Reminders] Checking {len(bookings)} bookings for date {today_str}...")
+
         for booking in bookings:
-            booking_date_str = booking["date"]
-            slot_time_str = booking["slot_time"].strip() if booking["slot_time"] else ""
+            try:
+                booking_date_str = booking["date"]
+                slot_time_str = booking["slot_time"].strip() if booking["slot_time"] else ""
+                phone = booking["phone"] or ""
 
-            # parse_slot_time returns timezone-aware datetimes — compare directly with now
-            booking_start, _ = parse_slot_time(slot_time_str, booking_date_str)
-            if booking_start is None:
+                if not slot_time_str:
+                    print(f"⚠️  Booking #{booking['id']}: No slot_time found")
+                    continue
+
+                # parse_slot_time returns timezone-aware datetimes — compare directly with now
+                booking_start, _ = parse_slot_time(slot_time_str, booking_date_str)
+                if booking_start is None:
+                    print(f"⚠️  Booking #{booking['id']}: Could not parse slot time '{slot_time_str}'")
+                    continue
+
+                # Send reminder if booking is within the next 10 minutes
+                if now <= booking_start <= reminder_window:
+                    display_slot = normalize_slot_label(slot_time_str) or slot_time_str
+                    message = (
+                        f"⏰ Reminder!\n\n"
+                        f"Hello {booking['name']},\n"
+                        f"Your table booking at CoziCafe is scheduled at {display_slot}.\n"
+                        f"📅 Date: {booking_date_str}\n"
+                        f"👥 Guests: {booking['seats']}\n\n"
+                        f"We look forward to seeing you! ☕✨"
+                    )
+
+                    success, msg = send_whatsapp_message(phone, message)
+
+                    if has_twilio_last_response:
+                        cursor.execute(
+                            "UPDATE bookings SET twilio_last_response = ? WHERE id = ?",
+                            (msg, booking["id"]),
+                        )
+
+                    if success:
+                        cursor.execute(
+                            "UPDATE bookings SET reminder_sent = 1 WHERE id = ?",
+                            (booking["id"],),
+                        )
+                        conn.commit()
+                        print(f"✅ Reminder sent for booking #{booking['id']} to {phone}")
+                    else:
+                        conn.commit()
+                        print(f"⚠️ Reminder failed for booking #{booking['id']}: {msg}")
+            except Exception as e:
+                print(f"❌ Error processing booking #{booking['id']}: {e}")
                 continue
-
-            # Send reminder if booking is within the next 10 minutes
-            if now <= booking_start <= reminder_window:
-                display_slot = normalize_slot_label(slot_time_str) or slot_time_str
-                message = (
-                    f"⏰ Reminder!\n\n"
-                    f"Hello {booking['name']},\n"
-                    f"Your table booking at CoziCafe is scheduled at {display_slot}.\n"
-                    f"📅 Date: {booking_date_str}\n"
-                    f"👥 Guests: {booking['seats']}\n\n"
-                    f"We look forward to seeing you! ☕✨"
-                )
-
-                success, msg = send_whatsapp_message(booking["phone"], message)
-
-                if has_twilio_last_response:
-                    cursor.execute(
-                        "UPDATE bookings SET twilio_last_response = ? WHERE id = ?",
-                        (msg, booking["id"]),
-                    )
-
-                if success:
-                    cursor.execute(
-                        "UPDATE bookings SET reminder_sent = 1 WHERE id = ?",
-                        (booking["id"],),
-                    )
-                    conn.commit()
-                    print(f"✅ Reminder sent for booking #{booking['id']}")
-                else:
-                    conn.commit()
-                    print(f"⚠️ Reminder failed for booking #{booking['id']}: {msg}")
 
     except Exception as e:
         print(f"❌ Reminder check error: {e}")
+        import traceback
+        traceback.print_exc()
     finally:
         conn.close()
 
@@ -118,46 +140,76 @@ def check_and_auto_noshow():
             (today_str,),
         ).fetchall()
 
+        if not rows:
+            # print(f"[No-show] No pending bookings to check for {today_str}")
+            return
+
+        print(f"[No-show] Checking {len(rows)} pending bookings for date {today_str}...")
+
         for booking in rows:
-            slot_time_str = booking["slot_time"].strip() if booking["slot_time"] else ""
-            booking_start, _ = parse_slot_time(slot_time_str, today_str)
-            if booking_start is None:
-                continue
+            try:
+                slot_time_str = booking["slot_time"].strip() if booking["slot_time"] else ""
+                phone = booking["phone"] or ""
 
-            # Only mark no-show after the grace period has elapsed
-            cutoff = booking_start + timedelta(minutes=NOSHOW_GRACE_MINUTES)
-            if now < cutoff:
-                continue
+                if not slot_time_str:
+                    print(f"⚠️  Booking #{booking['id']}: No slot_time found")
+                    continue
 
-            # Mark as No-show
-            cursor.execute(
-                "UPDATE bookings SET status = 'No-show' WHERE id = ?",
-                (booking["id"],),
-            )
-            # Free the table if it was assigned
-            if booking["table_number"]:
+                booking_start, _ = parse_slot_time(slot_time_str, today_str)
+                if booking_start is None:
+                    print(f"⚠️  Booking #{booking['id']}: Could not parse slot time '{slot_time_str}'")
+                    continue
+
+                # Only mark no-show after the grace period has elapsed
+                cutoff = booking_start + timedelta(minutes=NOSHOW_GRACE_MINUTES)
+                if now < cutoff:
+                    # Not yet time to mark as no-show
+                    continue
+
+                # FIX 3: Send WhatsApp notification BEFORE committing no-show status
+                # If notification succeeds, THEN update and commit
+                # If notification fails or user is walkin:, update without notification
+                if phone and not phone.startswith("walkin:"):
+                    try:
+                        display_slot = normalize_slot_label(slot_time_str) or slot_time_str
+                        success, msg = send_whatsapp_message(
+                            phone,
+                            f"⚠️ Your CoziCafe booking for {booking['date']} at {display_slot} "
+                            f"has been marked as No-show as we couldn't seat you.\n\n"
+                            f"Please contact us if this is a mistake: ☕ CoziCafe"
+                        )
+                        if not success:
+                            # Notification failed; don't update status yet
+                            print(f"⚠️ No-show notification failed for booking #{booking['id']}: {msg}")
+                            conn.rollback()
+                            continue
+                    except Exception as e:
+                        print(f"⚠️ Error sending no-show notification for booking #{booking['id']}: {e}")
+                        conn.rollback()
+                        continue
+
+                # Mark as No-show (after successful notification for real phones, no check for walkin:)
                 cursor.execute(
-                    "UPDATE tables SET status = 'Vacant' WHERE table_number = ?",
-                    (booking["table_number"],),
+                    "UPDATE bookings SET status = 'No-show' WHERE id = ?",
+                    (booking["id"],),
                 )
-            conn.commit()
-            print(f"⚠️ Booking #{booking['id']} marked No-show (slot: {slot_time_str})")
-
-            # Notify customer if within 24h Twilio window
-            phone = booking["phone"] or ""
-            if phone and not phone.startswith("walkin:"):
-                try:
-                    display_slot = normalize_slot_label(slot_time_str) or slot_time_str
-                    send_whatsapp_message(
-                        phone,
-                        f"⚠️ Your CoziCafe booking for {booking['date']} at {display_slot} "
-                        f"has been marked as No-show as we couldn't seat you.\n\n"
-                        f"Please contact us if this is a mistake: ☕ CoziCafe"
+                
+                # Free the table if it was assigned
+                if booking["table_number"]:
+                    cursor.execute(
+                        "UPDATE tables SET status = 'Vacant' WHERE table_number = ?",
+                        (booking["table_number"],),
                     )
-                except Exception:
-                    pass
+                
+                conn.commit()
+                print(f"⚠️  Booking #{booking['id']} marked No-show (slot: {slot_time_str}, grace mins: {NOSHOW_GRACE_MINUTES})")
+            except Exception as e:
+                print(f"❌ Error processing no-show for booking #{booking['id']}: {e}")
+                continue
 
     except Exception as e:
         print(f"❌ No-show check error: {e}")
+        import traceback
+        traceback.print_exc()
     finally:
         conn.close()

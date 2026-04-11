@@ -1,5 +1,7 @@
 import os
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
+from datetime import timezone
+# date import removed - unused (audit)
 
 from flask import Blueprint, request, g
 from werkzeug.local import LocalProxy
@@ -8,6 +10,9 @@ from twilio.twiml.messaging_response import MessagingResponse
 import db
 import payment
 from utils import normalize_slot_label, slots_equal
+
+# Contact number centralized
+CAFE_CONTACT_NUMBER = os.getenv("CAFE_CONTACT_NUMBER", "77680388366")
 
 bot_bp = Blueprint("bot", __name__)
 
@@ -456,7 +461,7 @@ def build_booking_confirmed_message(booking_id, phone):
         "If you do not arrive within 15 minutes, your table may be given to other guests.",
         "",
         "If you are running late or facing any issue, contact us at:",
-        "77680388366",
+        CAFE_CONTACT_NUMBER,
         "",
         "We look forward to serving you.",
     ]
@@ -540,8 +545,7 @@ def handle_main_menu(user_input, phone, msg):
         transition_to(CANCEL_SELECT)
         msg.body(get_cancel_select_prompt(phone))
     elif user_input == "4":
-        contact_number = os.getenv("CAFE_CONTACT_NUMBER", "77680388366")
-        msg.body(f"📞 Contact Us:\n{contact_number}")
+        msg.body(f"📞 Contact Us:\n{CAFE_CONTACT_NUMBER}")
     else:
         msg.body(_invalid_choice(get_main_menu_message(show_hint=False)))
 
@@ -734,6 +738,26 @@ def handle_confirm_booking(user_input, phone, msg):
         msg.body(_invalid_choice(get_confirm_booking_prompt(phone)))
         return
 
+    # FIX 1: Pre-flight check that payment system is reachable
+    try:
+        # Test payment link creation (will fail immediately if system down)
+        test_link_url, test_link_id = payment.create_payment_link(
+            booking_id=0,
+            customer_name="SystemCheck",
+            phone=phone
+        )
+        # Discard the test link ID since we're not using it
+    except Exception as e:
+        # Payment system unreachable
+        clear_booking_context()
+        clear_cancel_context()
+        reset_navigation(MAIN_MENU)
+        msg.body(
+            f"⚠️ Payment system is temporarily unavailable. Please try again later.\n\n"
+            f"{get_main_menu_message(show_hint=False)}"
+        )
+        return
+
     is_combo = session.get("b_is_combo", False)
 
     booking_id = None
@@ -773,6 +797,8 @@ def handle_confirm_booking(user_input, phone, msg):
             session["payment_link_id"] = link_id
             session["payment_booking_id"] = booking_id
             session["payment_link_url"] = link_url
+            # FIX 4: Record payment start time for timeout check
+            session['payment_start_time'] = datetime.now(timezone.utc).timestamp()
             
             transition_to(AWAITING_PAYMENT)
             msg.body(
@@ -905,6 +931,21 @@ def handle_awaiting_payment(user_input, phone, msg):
         reset_navigation(MAIN_MENU)
         msg.body(get_main_menu_message())
         return
+
+    # FIX 4: Check if payment timeout exceeded (30 minutes)
+    payment_start = session.get('payment_start_time')
+    if payment_start:
+        elapsed = (datetime.now(timezone.utc).timestamp() - payment_start)
+        if elapsed > 1800:  # 30 minutes
+            db.delete_pending_booking(booking_id)
+            clear_booking_context()
+            reset_navigation(MAIN_MENU)
+            msg.body(
+                "Payment link expired after 30 minutes. Your reservation was released. "
+                "Please try booking again.\n\n"
+                f"{get_main_menu_message(show_hint=False)}"
+            )
+            return
 
     # Triggered by checking payment
     if user_input.lower() in ["paid", "done", "check", "yes", "confirmed"]:
