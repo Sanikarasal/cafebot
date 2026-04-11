@@ -13,7 +13,7 @@ from utils import (
     sort_slot_labels,
 )
 
-DATABASE = "cafebot.db"
+DATABASE = os.path.join(os.getenv("DB_DIR","."),"cafebot.db")
 _RUNTIME_SCHEMA_READY = False
 _PENDING_TABLE_RELEASES = {}
 _PENDING_TABLE_RELEASES_LOCK = threading.Lock()
