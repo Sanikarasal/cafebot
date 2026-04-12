@@ -1,5 +1,7 @@
 import os
+import shutil
 import sys
+from pathlib import Path
 from flask import Flask, render_template, redirect, url_for
 from dotenv import load_dotenv
 
@@ -31,6 +33,20 @@ app.register_blueprint(ops_bp)
 def index():
     """Redirect to login page."""
     return redirect(url_for('auth.login'))
+
+
+def _seed_database_if_missing():
+    """Copy a packaged seed DB into the Railway volume on first boot only."""
+    db_dir = os.getenv('DB_DIR', '.')
+    target_db = Path(db_dir) / 'cafebot.db'
+    seed_db = Path(__file__).resolve().with_name('railway_seed.sqlite3')
+
+    if target_db.exists() or not seed_db.exists():
+        return
+
+    target_db.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(seed_db, target_db)
+    print(f"[Startup] Seeded database from {seed_db.name} to {target_db}", flush=True)
 
 
 # ---------------------------------------------------------------------------
@@ -87,6 +103,7 @@ def _start_scheduler():
 _SCHEDULER_STARTED_FLAG = "_CAFEBOT_SCHEDULER_STARTED"
 if not os.environ.get(_SCHEDULER_STARTED_FLAG):
     os.environ[_SCHEDULER_STARTED_FLAG] = "1"
+    _seed_database_if_missing()
     # Run DB migrations
     try:
         import migrate_v11_user_phone_otp as _mig11
