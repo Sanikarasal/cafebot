@@ -1,4 +1,5 @@
 import os
+import sqlite3
 import shutil
 import sys
 from pathlib import Path
@@ -41,8 +42,20 @@ def _seed_database_if_missing():
     target_db = Path(db_dir) / 'cafebot.db'
     seed_db = Path(__file__).resolve().with_name('railway_seed.sqlite3')
 
-    if target_db.exists() or not seed_db.exists():
+    if not seed_db.exists():
         return
+
+    if target_db.exists():
+        try:
+            conn = sqlite3.connect(target_db)
+            try:
+                booking_count = conn.execute('SELECT COUNT(*) FROM bookings').fetchone()[0]
+                if booking_count and int(booking_count) > 0:
+                    return
+            finally:
+                conn.close()
+        except Exception:
+            pass
 
     target_db.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(seed_db, target_db)
