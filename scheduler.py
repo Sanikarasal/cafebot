@@ -20,7 +20,7 @@ NOSHOW_GRACE_MINUTES = 20
 
 def _has_column(conn, table: str, column: str) -> bool:
     rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
-    return any(r[1] == column for r in rows)
+    return any(r['name'] == column for r in rows)
 
 
 def check_and_send_reminders():

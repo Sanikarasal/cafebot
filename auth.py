@@ -90,7 +90,7 @@ def logout():
 
 
 # ──────────────────────────────────────────────
-# Forgot Password — real WhatsApp OTP flow
+# Forgot Password — Email OTP flow
 # ──────────────────────────────────────────────
 
 def _generate_otp(length: int = 6) -> str:

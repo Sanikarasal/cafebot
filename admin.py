@@ -427,7 +427,7 @@ def manage_staff():
                     )
                     conn.commit()
                     flash('Staff member added.', 'success')
-                except Exception:
+                except Exception as e:
                     flash('Error adding staff member. Username may already exist.', 'danger')
                 finally:
                     conn.close()
@@ -440,6 +440,8 @@ def manage_staff():
                     conn.execute("DELETE FROM users WHERE id = ? AND role = 'staff'", (user_id,))
                     conn.commit()
                     flash('Staff member deleted.', 'warning')
+                except Exception as e:
+                    flash(f'Error deleting staff member: {e}', 'danger')
                 finally:
                     conn.close()
 
@@ -458,6 +460,8 @@ def manage_staff():
                     )
                     conn.commit()
                     flash('Staff password reset.', 'success')
+                except Exception as e:
+                    flash(f'Error resetting password: {e}', 'danger')
                 finally:
                     conn.close()
 

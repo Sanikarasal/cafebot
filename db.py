@@ -70,7 +70,7 @@ def _active_status_params():
     return statuses, placeholders
 
 def _now_iso():
-    return datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
 def _now_cafe_iso():
     return get_cafe_time().isoformat()
@@ -264,29 +264,33 @@ def update_customer_session(phone):
     """Update or insert the last message timestamp for a user."""
     conn = get_db_connection()
     now = datetime.now().isoformat()
-    conn.execute(
-        """
-        INSERT INTO customers (phone, last_message_timestamp)
-        VALUES (?, ?)
-        ON CONFLICT(phone) DO UPDATE SET last_message_timestamp = ?
-        """, (phone, now, now)
-    )
-    conn.commit()
-    conn.close()
+    try:
+        conn.execute(
+            """
+            INSERT INTO customers (phone, last_message_timestamp)
+            VALUES (?, ?)
+            ON CONFLICT(phone) DO UPDATE SET last_message_timestamp = ?
+            """, (phone, now, now)
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def get_messageability(phone):
     """Check if the user is within the 24-hour Twilio Trial window."""
     conn = get_db_connection()
-    customer = conn.execute(
-        "SELECT last_message_timestamp FROM customers WHERE phone = ?", 
-        (phone,)
-    ).fetchone()
-    conn.close()
-    
+    try:
+        customer = conn.execute(
+            "SELECT last_message_timestamp FROM customers WHERE phone = ?",
+            (phone,)
+        ).fetchone()
+    finally:
+        conn.close()
+
     if not customer:
         return False
-        
+
     last_msg_time = datetime.fromisoformat(customer["last_message_timestamp"])
     is_messageable = (datetime.now() - last_msg_time).total_seconds() <= (24 * 3600)
     return is_messageable
